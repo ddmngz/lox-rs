@@ -1,0 +1,1 @@
+Hi! This is just my implementation of the Lox Programming language from the [Crafting Intrepreters Book!](https://craftinginterpreters.com). I thought it would be fun to do it in (my attempt at) idiomatic rust, so I am! It's not finished now, but feel free to use it as reference for your own implementation when you're done!

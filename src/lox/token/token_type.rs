@@ -1,7 +1,7 @@
 use std::fmt;
 #[allow(clippy::upper_case_acronyms, dead_code)]
-#[derive(Debug, Copy, Clone)]
-pub enum TokenType<'a> {
+#[derive(Debug, Clone, Default, PartialEq)]
+pub enum TokenType {
     LEFTPAREN,
     RIGHTPAREN,
     LEFTBRACE,
@@ -22,9 +22,9 @@ pub enum TokenType<'a> {
     GREATEREQUAL,
     LESS,
     LESSEQUAL,
-
+    #[default]
     IDENTIFIER,
-    STRING(&'a str),
+    STRING(String),
     NUMBER(f64),
 
     AND,
@@ -47,7 +47,7 @@ pub enum TokenType<'a> {
     EOF,
 }
 
-impl<'a> fmt::Display for TokenType<'a> {
+impl fmt::Display for TokenType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", &self)
     }

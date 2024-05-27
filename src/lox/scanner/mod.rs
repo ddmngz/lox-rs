@@ -1,59 +1,52 @@
 use super::error::LoxError;
 use super::error::LoxError::*;
 use crate::lox::token::{Token, TokenType};
-use once_cell::sync::Lazy;
-use std::collections::HashMap;
-use std::iter::{Enumerate, Peekable};
-use std::str::Chars;
-use std::str::FromStr;
+use phf::phf_map;
+use std::iter::{IntoIterator, Peekable};
 
 mod helpers;
 
-static KEYWORDS: Lazy<HashMap<&str, TokenType>> = Lazy::new(|| {
+static KEYWORDS: phf::Map<&'static str, TokenType> = {
     use TokenType::*;
-    HashMap::from([
-        ("and", AND),
-        ("class", CLASS),
-        ("else", ELSE),
-        ("false", FALSE),
-        ("for", FOR),
-        ("fun", FUN),
-        ("if", IF),
-        ("nil", NIL),
-        ("or", OR),
-        ("print", PRINT),
-        ("return", RETURN),
-        ("super", SUPER),
-        ("this", THIS),
-        ("true", TRUE),
-        ("var", VAR),
-        ("while", WHILE),
-    ])
-});
+    phf_map! {
+        "and" => AND,
+        "class" => CLASS,
+        "else" => ELSE,
+        "false" => FALSE,
+        "for" => FOR,
+        "fun" => FUN,
+        "if" => IF,
+        "nil" => NIL,
+        "or" => OR,
+        "print" => PRINT,
+        "return" => RETURN,
+        "super" => SUPER,
+        "this" => THIS,
+        "true" => TRUE,
+        "var" => VAR,
+        "while" => WHILE,
+    }
+};
 
-pub struct Scanner<'a> {
-    source: &'a str,
-    tokens: Vec<Token<'a>>,
-    iter: Peekable<Enumerate<Chars<'a>>>,
-    lex_start: usize,
+pub struct Scanner {
+    tokens: Vec<Token>,
+    iter: Peekable<<Vec<char> as IntoIterator>::IntoIter>,
     line: u32,
 }
 
-impl<'a> Scanner<'a> {
-    pub fn new(source: &'a str) -> Self {
+impl Scanner {
+    pub fn new(source: String) -> Self {
+        let chars: Vec<char> = source.chars().collect();
         Self {
-            source,
+            iter: chars.into_iter().peekable(),
             tokens: Vec::<Token>::new(),
-            iter: source.chars().enumerate().peekable(),
-            lex_start: 0,
             line: 1,
         }
     }
 
-    pub fn scan_tokens(&mut self) -> Result<Vec<Token>, LoxError> {
+    pub fn scan_tokens(mut self) -> Result<Vec<Token>, LoxError> {
         let mut ret: Result<(), LoxError> = Ok(());
         while !self.is_at_end() {
-            self.lex_start = self.get_pos();
             ret = self.scan_token();
         }
 
@@ -67,30 +60,30 @@ impl<'a> Scanner<'a> {
     }
 
     fn scan_token(&mut self) -> Result<(), LoxError> {
-        let (_, value) = self.iter.next().unwrap();
+        let value = self.iter.next().unwrap();
         use TokenType::*;
 
         match value {
-            '(' => self.add_token(LEFTPAREN),
-            ')' => self.add_token(RIGHTPAREN),
-            '{' => self.add_token(LEFTBRACE),
-            '}' => self.add_token(RIGHTBRACE),
-            ',' => self.add_token(COMMA),
-            '.' => self.add_token(DOT),
-            '-' => self.add_token(MINUS),
-            '+' => self.add_token(PLUS),
-            ';' => self.add_token(SEMICOLON),
-            '*' => self.add_token(STAR),
-            '!' => self.add_operator(BANGEQUAL, BANG, '='),
-            '=' => self.add_operator(EQUALEQUAL, EQUAL, '='),
-            '<' => self.add_operator(LESSEQUAL, LESS, '='),
-            '>' => self.add_operator(GREATEREQUAL, LESS, '='),
+            '(' => self.add_char(LEFTPAREN, value),
+            ')' => self.add_char(RIGHTPAREN, value),
+            '{' => self.add_char(LEFTBRACE, value),
+            '}' => self.add_char(RIGHTBRACE, value),
+            ',' => self.add_char(COMMA, value),
+            '.' => self.add_char(DOT, value),
+            '-' => self.add_char(MINUS, value),
+            '+' => self.add_char(PLUS, value),
+            ';' => self.add_char(SEMICOLON, value),
+            '*' => self.add_char(STAR, value),
+            '!' => self.add_operator(BANGEQUAL, BANG, value),
+            '=' => self.add_operator(EQUALEQUAL, EQUAL, value),
+            '<' => self.add_operator(LESSEQUAL, LESS, value),
+            '>' => self.add_operator(GREATEREQUAL, LESS, value),
             '/' => {
                 if self.check_next('/') {
-                    self.advance_while(|(_, x)| *x != '\n');
+                    self.advance_while(|x| *x != '\n');
                     Ok(())
                 } else {
-                    self.add_token(SLASH)
+                    self.add_char(SLASH, value)
                 }
             }
             ' ' => Ok(()),
@@ -105,32 +98,30 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    fn add_token(&mut self, __type: TokenType<'a>) -> Result<(), LoxError> {
-        let lexeme = self.get_lexeme();
-        self.tokens.push(Token::new(__type, lexeme, self.line));
-        Ok(())
+    fn add_char(&mut self, __type: TokenType, token: char) -> Result<(), LoxError> {
+        self.add_token(__type, &token.to_string())
     }
 
     fn add_operator(
         &mut self,
-        double_operator: TokenType<'a>,
-        single_operator: TokenType<'a>,
-        next: char,
+        double_operator: TokenType,
+        single_operator: TokenType,
+        value: char,
     ) -> Result<(), LoxError> {
-        let operator = if self.check_next(next) {
-            double_operator
+        if self.check_next('=') {
+            self.iter.next();
+            let mut lexeme = String::with_capacity(2);
+            lexeme.push(value);
+            lexeme.push('=');
+            self.add_token(double_operator, &lexeme)
         } else {
-            single_operator
-        };
-        self.add_token(operator)
+            self.add_char(single_operator, value)
+        }
     }
 
     fn handle_string(&mut self) -> Result<(), LoxError> {
-        while let Some((_, x)) = self.iter.next_if(|(_, x)| *x != '"') {
-            if x == '\n' {
-                self.line += 1;
-            }
-        }
+        let cur_str = self.advance_and_get_literal(|x| *x != '"');
+        // ref cell thing
 
         if self.iter.peek().is_none() {
             UntermString.error(self.line);
@@ -138,39 +129,50 @@ impl<'a> Scanner<'a> {
         }
 
         self.iter.next();
-
-        let pos = self.get_pos();
-        let literal = &self.source[self.lex_start + 1..pos - 1];
-        self.add_token(TokenType::STRING(literal))
+        let token = Token::new_string(&cur_str, self.line);
+        self.tokens.push(token);
+        Ok(())
     }
 
     fn handle_complex_lexemes(&mut self, val: char) -> Result<(), LoxError> {
         if val.is_ascii_digit() {
-            self.handle_number()
+            self.handle_number(val)
         } else if val.is_ascii_alphanumeric() {
-            self.handle_identifier()
+            self.handle_identifier(val)
         } else {
             Err(Syntax.error(self.line))
         }
     }
 
-    fn handle_number(&mut self) -> Result<(), LoxError> {
-        self.advance_while(|(_, x)| x.is_ascii_digit());
-        self.handle_decimal();
-        let num = f64::from_str(self.get_lexeme()).unwrap();
-        self.add_token(TokenType::NUMBER(num))
+    fn handle_number(&mut self, val:char) -> Result<(), LoxError> {
+        let mut cur_str = String::from(val);
+        cur_str.push_str(&self.advance_and_get_literal(|x| x.is_ascii_digit()));
+
+        if self.iter.next().is_some_and(|x| x == '.') {
+            cur_str.push('.');
+            cur_str.push_str(&self.advance_and_get_literal(|x| x.is_ascii_digit()));
+        } 
+        let token = Token::new_number(&cur_str, self.line)?;
+        self.tokens.push(token);
+        Ok(())
     }
 
-    fn handle_decimal(&mut self) {
-        // if we have a . and then decimals keep going
-        if self.iter.next_if(|(_, x)| *x == '.').is_some() {
-            self.advance_while(|(_, x)| x.is_ascii_digit());
+    fn handle_identifier(&mut self, val:char) -> Result<(), LoxError> {
+        let mut cur_str = String::from(val);
+        cur_str.push_str(&self.advance_and_get_literal(|x| x.is_ascii_alphanumeric()));
+        let str_pointer = cur_str.as_str();
+        let token;
+        if let Some(tok) = KEYWORDS.get(str_pointer) {
+            token = tok.clone();
+        } else {
+            token = TokenType::IDENTIFIER;
         }
+        self.add_token(token, &cur_str)
     }
 
-    fn handle_identifier(&mut self) -> Result<(), LoxError> {
-        self.advance_while(|(_, x)| x.is_ascii_alphanumeric());
-        let text = self.get_lexeme();
-        self.add_token(*(*KEYWORDS).get(text).unwrap_or(&TokenType::IDENTIFIER))
+    fn add_token(&mut self, token: TokenType, literal: &str) -> Result<(), LoxError> {
+        let token = Token::new(token, &literal, self.line);
+        self.tokens.push(token);
+        Ok(())
     }
 }

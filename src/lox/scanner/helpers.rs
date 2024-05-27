@@ -1,24 +1,25 @@
-use crate::lox::Scanner;
+use crate::lox::scanner::Scanner;
 
-impl<'a> Scanner<'a> {
+impl Scanner {
     pub fn advance_while<F>(&mut self, f: F)
     where
-        F: Fn(&(usize, char)) -> bool,
+        F: Fn(&char) -> bool,
     {
         while self.iter.next_if(&f).is_some() {}
     }
 
-    pub fn get_pos(&mut self) -> usize {
-        if let Some((pos, _)) = self.iter.peek() {
-            *pos
-        } else {
-            self.source.len()
+    pub fn advance_and_get_literal<F>(&mut self, f: F) -> String
+    where
+        F: Fn(&char) -> bool,
+    {
+        let mut cur_str = String::new();
+        while let Some(x) = self.iter.next_if(&f) {
+            if x == '\n' {
+                self.line += 1;
+            }
+            cur_str.push(x);
         }
-    }
-
-    pub fn get_lexeme(&mut self) -> &'a str {
-        let pos = self.get_pos();
-        self.source[self.lex_start..pos].as_ref()
+        cur_str
     }
 
     pub fn is_at_end(&mut self) -> bool {
@@ -26,6 +27,6 @@ impl<'a> Scanner<'a> {
     }
 
     pub fn check_next(&mut self, cmp: char) -> bool {
-        self.iter.peek().is_some_and(|(_, x)| *x == cmp)
+        self.iter.peek().is_some_and(|x| *x == cmp)
     }
 }

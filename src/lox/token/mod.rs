@@ -1,34 +1,54 @@
 pub mod token_type;
-
 use std::fmt;
+use std::num::ParseFloatError;
+use std::str::FromStr;
 pub use token_type::TokenType;
-
-pub struct Token<'a> {
-    typ_e: TokenType<'a>,
-    pub lexeme: &'a str,
+#[derive(Default, Clone)]
+pub struct Token {
+    pub r#type: TokenType,
+    pub lexeme: String,
     line: u32,
 }
 
-impl<'a> Token<'a> {
-    pub fn new(typ: TokenType<'a>, lexeme: &'a str, line: u32) -> Self {
+impl Token {
+    pub fn new(r#type: TokenType, lexeme: &str, line: u32) -> Self {
+        let lexeme = String::from(lexeme);
         Self {
-            typ_e: typ,
+            r#type,
             lexeme,
             line,
         }
     }
 
+    pub fn new_string(lexeme: &str, line: u32) -> Self {
+        let literal = String::from(lexeme);
+        Self {
+            r#type: TokenType::STRING(literal.clone()),
+            lexeme: literal,
+            line,
+        }
+    }
+
+    pub fn new_number(lexeme: &str, line: u32) -> Result<Self, ParseFloatError> {
+        let literal = f64::from_str(lexeme)?;
+        Ok(Self {
+            r#type: TokenType::NUMBER(literal),
+            lexeme: String::from(lexeme),
+            line,
+        })
+    }
+
     pub fn eof(line: u32) -> Self {
         Self {
-            typ_e: TokenType::EOF,
-            lexeme: (""),
+            r#type: TokenType::EOF,
+            lexeme: String::from(""),
             line,
         }
     }
 }
 
-impl<'a> fmt::Display for Token<'a> {
+impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {} {}", self.typ_e, self.lexeme, self.line)
+        write!(f, "{} {} {}", self.r#type, self.lexeme, self.line)
     }
 }

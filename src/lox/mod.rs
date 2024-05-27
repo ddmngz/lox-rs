@@ -2,11 +2,13 @@ use std::fs::File;
 use std::io::{stdin, Read};
 
 pub mod error;
-mod parser;
+pub mod parser;
 mod scanner;
-mod token;
+pub mod token;
 
 use error::LoxError;
+use parser::ast_printer::AstPrinter;
+use parser::Parser;
 use scanner::Scanner;
 use token::Token;
 
@@ -36,12 +38,17 @@ impl Lox {
         }
     }
     fn run(&mut self, message: String) -> Result<(), LoxError> {
-        let message = Box::leak(message.into_boxed_str());
-        let mut scan: Scanner = Scanner::new(message);
+        let scan = Scanner::new(message);
         let tokens: Vec<Token> = scan.scan_tokens()?;
-        for token in tokens {
-            println!("{}", token);
+        for tok in tokens.clone(){
+            println!("{}", tok);
         }
+        let mut parser = Parser::new(tokens);
+        let expr = parser.parse()?;
+
+        let mut printer = AstPrinter::new();
+        println!("{}", printer.print(expr));
+
         Ok(())
     }
 }

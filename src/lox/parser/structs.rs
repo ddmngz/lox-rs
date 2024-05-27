@@ -7,48 +7,103 @@ pub trait Visitor<T> {
     fn visit_unary(&self, expr: &Unary) -> T;
 }
 
-pub enum Expr<'a> {
-    Binary(Binary<'a>),
-    Grouping(Grouping<'a>),
+pub enum Expr {
+    Binary(Binary),
+    Grouping(Grouping),
     Literal(Literal),
-    Unary(Unary<'a>),
+    Unary(Unary),
 }
 
 pub fn walk_expr<T>(visitor: &mut dyn Visitor<T>, e: &Expr) -> T {
     match e {
-        Expr::Binary(Binary) => visitor.visit_binary(&Binary),
-        Expr::Grouping(Grouping) => visitor.visit_grouping(&Grouping),
-        Expr::Literal(Literal) => visitor.visit_literal(&Literal),
-        Expr::Unary(Unary) => visitor.visit_unary(&Unary),
+        Expr::Binary(binary) => visitor.visit_binary(binary),
+        Expr::Grouping(grouping) => visitor.visit_grouping(grouping),
+        Expr::Literal(literal) => visitor.visit_literal(literal),
+        Expr::Unary(unary) => visitor.visit_unary(unary),
     }
 }
 
-pub struct Binary<'a> {
-    pub left: Box<Expr<'a>>,
-    pub operator: Token<'a>,
-    pub right: Box<Expr<'a>>,
+pub struct Binary {
+    pub left: Box<Expr>,
+    pub operator: Token,
+    pub right: Box<Expr>,
 }
 
-pub struct Grouping<'a> {
-    pub expression: Box<Expr<'a>>,
+pub struct Grouping {
+    pub expression: Box<Expr>,
 }
 
 pub struct Literal {
-    pub value: Option<LiteralEnum>,
+    pub value: LiteralType,
 }
 
-pub enum LiteralEnum {
+pub enum LiteralType {
     Float(f64),
     String(String),
+    True,
+    False,
+    Nil,
 }
 
-pub struct Unary<'a> {
-    pub operator: Token<'a>,
-    pub right: Box<Expr<'a>>,
+pub struct Unary {
+    pub operator: Token,
+    pub right: Box<Expr>,
 }
 
-/*
- * Expr trait just has accept()
- * ExpressionVisitor trait has visit_<each_expr>
- *
- */
+impl Binary {
+    pub fn new(left: Expr, operator: Token, right: Expr) -> Expr {
+        Expr::Binary(Self {
+            left: Box::new(left),
+            operator,
+            right: Box::new(right),
+        })
+    }
+}
+
+impl Grouping {
+    pub fn new(expression: Expr) -> Expr {
+        Expr::Grouping(Self {
+            expression: Box::new(expression),
+        })
+    }
+}
+
+impl Literal {
+    pub fn float(value: f64) -> Expr {
+        Expr::Literal(Self {
+            value: LiteralType::Float(value),
+        })
+    }
+
+    pub fn string(value: &str) -> Expr {
+        Expr::Literal(Self {
+            value: LiteralType::String(String::from(value)),
+        })
+    }
+
+    pub fn nil() -> Expr {
+        Expr::Literal(Self {
+            value: LiteralType::Nil,
+        })
+    }
+    pub fn r#true() -> Expr {
+        Expr::Literal(Self {
+            value: LiteralType::True,
+        })
+    }
+
+    pub fn r#false() -> Expr {
+        Expr::Literal(Self {
+            value: LiteralType::False,
+        })
+    }
+}
+
+impl Unary {
+    pub fn new(operator: Token, right: Expr) -> Expr {
+        Expr::Unary(Self {
+            operator,
+            right: Box::new(right),
+        })
+    }
+}

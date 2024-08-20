@@ -1,4 +1,4 @@
-use super::structs::*;
+use super::expr::*;
 
 pub struct AstPrinter;
 
@@ -27,7 +27,7 @@ impl AstPrinter {
 impl Visitor<String> for AstPrinter {
     fn visit_binary(&self, expr: &Binary) -> String {
         let args = [expr.left.as_ref(), expr.right.as_ref()];
-        parenthesize(&expr.operator.lexeme, &args)
+        parenthesize(&expr.operator.to_string(), &args)
     }
 
     fn visit_grouping(&self, expr: &Grouping) -> String {
@@ -35,17 +35,16 @@ impl Visitor<String> for AstPrinter {
     }
 
     fn visit_literal(&self, expr: &Literal) -> String {
-        use LiteralValue::{False, Float, Nil, String, True};
+        use LiteralValue::*;
         match &expr.value {
             Float(f) => f.to_string(),
             r#String(s) => s.clone(),
             Nil => "nil".to_string(),
-            True => "true".to_string(),
-            False => "false".to_string(),
+            Bool(b) => b.to_string(),
         }
     }
 
     fn visit_unary(&self, expr: &Unary) -> String {
-        parenthesize(&expr.operator.lexeme, &[&expr.right])
+        parenthesize(&expr.operator.to_string(), &[&expr.right])
     }
 }

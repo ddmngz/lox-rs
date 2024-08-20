@@ -1,67 +1,40 @@
-use std::fmt;
-use std::fmt::Display;
+use thiserror::Error;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Error)]
 pub enum LoxError {
+    #[error("Usage: jlox [script] | jlox")]
     Misused,
-    IO,
+    #[error("IO Error: {0}")]
+    IO(#[from] std::io::Error),
+    
+    #[error("Unterminated String")]
     UntermString,
+
+    #[error("Unexpected Character")]
     Syntax,
-    FloatParse,
-    ParsingError(LoxParsingError),
+
+    #[error("Float Parsing Error")]
+    FloatParse(#[from] std::num::ParseFloatError),
+
+    #[error("Parsing Error: {0}")]
+    ParsingError(#[from] LoxParsingError),
+
+    #[error("Runtime Error: {0}")]
+    RuntimeError(#[from]LoxRuntimeError),
 }
-#[derive(Debug, Clone)]
+
+#[derive(Debug, Clone, Error)]
+pub enum LoxRuntimeError{
+}
+
+#[derive(Debug, Clone, Error)]
 pub enum LoxParsingError {
+    #[error("Expected ')' after expression.")]
     UntermParen,
+    #[error("Expected Expression.")]
     NoExpr,
 }
 
-impl From<LoxParsingError> for LoxError {
-    fn from(error: LoxParsingError) -> Self {
-        Self::ParsingError(error)
-    }
-}
-
-impl From<std::io::Error> for LoxError {
-    fn from(_: std::io::Error) -> Self {
-        Self::IO
-    }
-}
-
-impl From<std::num::ParseFloatError> for LoxError {
-    fn from(_: std::num::ParseFloatError) -> Self {
-        Self::FloatParse
-    }
-}
-
-impl Display for LoxParsingError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let msg = match self {
-            Self::UntermParen => "Expected ')' after expression.",
-            Self::NoExpr => "Expected Expression.",
-        };
-        write!(f, "{}", msg)
-    }
-}
-
-impl Display for LoxError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let message_owner: String;
-        let msg = match self {
-            Self::Misused => "Usage: jlox [script].",
-            Self::IO => "IO Error.",
-            Self::UntermString => "Unterminated string.",
-            Self::Syntax => "Unexpected character.",
-            Self::FloatParse => "Float Parsing Error.",
-            Self::ParsingError(error) => {
-                message_owner = error.to_string();
-                &message_owner
-            }
-        };
-
-        write!(f, "{}", msg)
-    }
-}
 
 impl LoxError {
     pub fn error(self, line: u32) -> Self {

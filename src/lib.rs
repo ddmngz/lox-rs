@@ -4,12 +4,13 @@ use std::io::{stdin, Read};
 
 pub mod error;
 pub mod parser;
-mod scanner;
+pub mod scanner;
 pub mod token;
+pub mod interpreter;
 
 use error::LoxError;
 use parser::Parser;
-use parser::interpreter::Interpreter;
+use interpreter::Interpreter;
 use scanner::Scanner;
 use token::Token;
 

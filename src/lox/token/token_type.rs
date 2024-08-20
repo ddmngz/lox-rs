@@ -1,4 +1,5 @@
 use std::fmt;
+/// Every Possible Type of Token
 #[allow(clippy::upper_case_acronyms, dead_code)]
 #[derive(Debug, Clone, Default, PartialEq)]
 pub enum TokenType {
@@ -24,6 +25,8 @@ pub enum TokenType {
     LESSEQUAL,
     #[default]
     IDENTIFIER,
+    /// String and Number store their own 
+    /// Internal representation
     STRING(String),
     NUMBER(f64),
 

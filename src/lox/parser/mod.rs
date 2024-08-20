@@ -6,6 +6,7 @@ use super::token::TokenType::*;
 use super::Token;
 use std::iter::Peekable;
 use structs::{Binary, Expr, Grouping, Literal, Unary};
+pub mod interpreter;
 /*
 pub struct Parser{
     iter:Peekable<Enumerate<<Vec<Token> as IntoIterator>::IntoIter>>,

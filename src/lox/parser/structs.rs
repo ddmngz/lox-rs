@@ -7,6 +7,7 @@ pub trait Visitor<T> {
     fn visit_unary(&self, expr: &Unary) -> T;
 }
 
+#[derive(Clone)]
 pub enum Expr {
     Binary(Binary),
     Grouping(Grouping),
@@ -14,7 +15,7 @@ pub enum Expr {
     Unary(Unary),
 }
 
-pub fn walk_expr<T>(visitor: &mut dyn Visitor<T>, e: &Expr) -> T {
+pub fn walk_expr<T>(visitor: &dyn Visitor<T>, e: &Expr) -> T {
     match e {
         Expr::Binary(binary) => visitor.visit_binary(binary),
         Expr::Grouping(grouping) => visitor.visit_grouping(grouping),
@@ -23,21 +24,25 @@ pub fn walk_expr<T>(visitor: &mut dyn Visitor<T>, e: &Expr) -> T {
     }
 }
 
+#[derive(Clone)]
 pub struct Binary {
     pub left: Box<Expr>,
     pub operator: Token,
     pub right: Box<Expr>,
 }
 
+#[derive(Clone)]
 pub struct Grouping {
     pub expression: Box<Expr>,
 }
 
+#[derive(Clone)]
 pub struct Literal {
-    pub value: LiteralType,
+    pub value: LiteralValue,
 }
 
-pub enum LiteralType {
+#[derive(Clone)]
+pub enum LiteralValue {
     Float(f64),
     String(String),
     True,
@@ -45,6 +50,7 @@ pub enum LiteralType {
     Nil,
 }
 
+#[derive(Clone)]
 pub struct Unary {
     pub operator: Token,
     pub right: Box<Expr>,
@@ -71,30 +77,30 @@ impl Grouping {
 impl Literal {
     pub fn float(value: f64) -> Expr {
         Expr::Literal(Self {
-            value: LiteralType::Float(value),
+            value: LiteralValue::Float(value),
         })
     }
 
     pub fn string(value: &str) -> Expr {
         Expr::Literal(Self {
-            value: LiteralType::String(String::from(value)),
+            value: LiteralValue::String(String::from(value)),
         })
     }
 
     pub fn nil() -> Expr {
         Expr::Literal(Self {
-            value: LiteralType::Nil,
+            value: LiteralValue::Nil,
         })
     }
     pub fn r#true() -> Expr {
         Expr::Literal(Self {
-            value: LiteralType::True,
+            value: LiteralValue::True,
         })
     }
 
     pub fn r#false() -> Expr {
         Expr::Literal(Self {
-            value: LiteralType::False,
+            value: LiteralValue::False,
         })
     }
 }

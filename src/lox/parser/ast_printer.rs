@@ -35,7 +35,7 @@ impl Visitor<String> for AstPrinter {
     }
 
     fn visit_literal(&self, expr: &Literal) -> String {
-        use LiteralType::{False, Float, Nil, String, True};
+        use LiteralValue::{False, Float, Nil, String, True};
         match &expr.value {
             Float(f) => f.to_string(),
             r#String(s) => s.clone(),

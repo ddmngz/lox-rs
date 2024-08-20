@@ -3,10 +3,14 @@ use std::fmt;
 use std::num::ParseFloatError;
 use std::str::FromStr;
 pub use token_type::TokenType;
+/// The Token struct and funcitonality
 #[derive(Default, Clone)]
 pub struct Token {
+    /// What the token this is, also stores value
     pub r#type: TokenType,
+    /// The base lexeme we're holding
     pub lexeme: String,
+    /// Line number of the lexeme
     line: u32,
 }
 

@@ -1,11 +1,13 @@
 use strum_macros::Display;
 
+type Result<T> = std::result::Result<T, crate::lox::error::LoxRuntimeError>;
+
 
 pub trait Visitor<T> {
-    fn visit_binary(&self, expr: &Binary) -> T;
-    fn visit_grouping(&self, expr: &Grouping) -> T;
-    fn visit_literal(&self, expr: &Literal) -> T;
-    fn visit_unary(&self, expr: &Unary) -> T;
+    fn visit_binary(&self, expr: &Binary) -> Result<T>;
+    fn visit_grouping(&self, expr: &Grouping) -> Result<T>;
+    fn visit_literal(&self, expr: &Literal) -> Result<T>;
+    fn visit_unary(&self, expr: &Unary) -> Result<T>;
 }
 
 #[derive(Clone, Debug)]
@@ -16,7 +18,7 @@ pub enum Expr {
     Unary(Unary),
 }
 
-pub fn walk_expr<T>(visitor: &dyn Visitor<T>, e: &Expr) -> T {
+pub fn walk_expr<T>(visitor: &dyn Visitor<T>, e: &Expr) -> Result<T> {
     match e {
         Expr::Binary(binary) => visitor.visit_binary(binary),
         Expr::Grouping(grouping) => visitor.visit_grouping(grouping),
@@ -42,11 +44,15 @@ pub struct Literal {
     pub value: LiteralValue,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Display)]
 pub enum LiteralValue {
+    #[strum(serialize = "{0}")]
     Float(f64),
+    #[strum(serialize = "{0}")]
     String(String),
+    #[strum(serialize = "{0}")]
     Bool(bool),
+    #[strum(serialize = "nil")]
     Nil,
 }
 

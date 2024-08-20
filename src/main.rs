@@ -2,6 +2,7 @@ mod lox;
 use lox::error::LoxError;
 use lox::parser::ast_printer::AstPrinter;
 use lox::parser::expr::{Binary, Grouping, Literal, Unary, UnaryOperator, BinaryOperator};
+use lox::parser::interpreter::Interpreter;
 use lox::Lox;
 use std::cmp::Ordering;
 use std::env;
@@ -17,7 +18,8 @@ fn _test_tree() {
     let binary = Binary::new(unary, times, grouping);
 
     let mut printer = AstPrinter {};
-    println!("{}", printer.print(binary));
+    let mut interpreter = Interpreter {};
+    interpreter.interpret(&binary).unwrap();
 }
 
 fn main() -> Result<(), LoxError> {

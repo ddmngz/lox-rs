@@ -25,6 +25,8 @@ pub enum LoxError {
 
 #[derive(Debug, Clone, Error)]
 pub enum LoxRuntimeError{
+    #[error("Operator must be a number.")]
+    InvalidOperand,
 }
 
 #[derive(Debug, Clone, Error)]
@@ -41,6 +43,7 @@ impl LoxError {
         self.report(line, "");
         self
     }
+
 
     pub fn report(&self, line: u32, whre: &str) {
         eprintln!("[line {}] Error {}: {}", line, whre, self);

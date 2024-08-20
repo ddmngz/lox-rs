@@ -9,6 +9,7 @@ pub mod token;
 use error::LoxError;
 use parser::ast_printer::AstPrinter;
 use parser::Parser;
+use parser::interpreter::Interpreter;
 use scanner::Scanner;
 use token::Token;
 
@@ -40,15 +41,19 @@ impl Lox {
     fn run(&mut self, message: String) -> Result<(), LoxError> {
         let scan = Scanner::new(message);
         let tokens: Vec<Token> = scan.scan_tokens()?;
-        for tok in tokens.clone(){
-            println!("{}", tok);
-        }
         let mut parser = Parser::new(tokens);
         let expr = parser.parse()?;
 
+        let interpreter = Interpreter{};
+        
+        match interpreter.interpret(&expr){
+            Ok(()) => Ok(()),
+            Err(e) => Err(LoxError::RuntimeError(e)),
+        }
+        /*
         let mut printer = AstPrinter::new();
         println!("{}", printer.print(expr));
+        */
 
-        Ok(())
     }
 }

@@ -1,5 +1,5 @@
 use super::expr::*;
-
+use crate::lox::error::LoxRuntimeError;
 pub struct AstPrinter;
 
 fn parenthesize(name: &str, args: &[&Expr]) -> String {
@@ -7,7 +7,7 @@ fn parenthesize(name: &str, args: &[&Expr]) -> String {
     str.push_str(name);
     for expr in args {
         str.push(' ');
-        str.push_str(walk_expr::<String>(&mut AstPrinter, expr).as_str());
+        str.push_str(walk_expr::<String>(&mut AstPrinter, expr).unwrap().as_str());
     }
     str.push(')');
     str
@@ -16,7 +16,7 @@ fn parenthesize(name: &str, args: &[&Expr]) -> String {
 impl AstPrinter {
     #[allow(dead_code)]
     pub fn print(&mut self, expr: Expr) -> String {
-        walk_expr(self, &expr)
+        walk_expr(self, &expr).unwrap()
     }
 
     pub fn new() -> Self {
@@ -24,7 +24,7 @@ impl AstPrinter {
     }
 }
 
-impl Visitor<String> for AstPrinter {
+impl AstPrinter{
     fn visit_binary(&self, expr: &Binary) -> String {
         let args = [expr.left.as_ref(), expr.right.as_ref()];
         parenthesize(&expr.operator.to_string(), &args)
@@ -46,5 +46,24 @@ impl Visitor<String> for AstPrinter {
 
     fn visit_unary(&self, expr: &Unary) -> String {
         parenthesize(&expr.operator.to_string(), &[&expr.right])
+    }
+
+}
+
+
+impl Visitor<String> for AstPrinter {
+    fn visit_binary(&self, expr: &Binary) -> Result<String, LoxRuntimeError>{
+        Ok(self.visit_binary(expr))
+    }
+    fn visit_grouping(&self, expr: &Grouping) -> Result<String, LoxRuntimeError>{
+        Ok(self.visit_grouping(expr))
+    }
+
+    fn visit_literal(&self, expr: &Literal) -> Result<String, LoxRuntimeError>{
+        Ok(self.visit_literal(expr))
+    }
+
+    fn visit_unary(&self, expr: &Unary) -> Result<String, LoxRuntimeError>{
+        Ok(self.visit_unary(expr))
     }
 }

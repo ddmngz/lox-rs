@@ -1,4 +1,3 @@
-mod lox;
 use lox::error::LoxError;
 use lox::parser::ast_printer::AstPrinter;
 use lox::parser::expr::{Binary, Grouping, Literal, Unary, UnaryOperator, BinaryOperator};

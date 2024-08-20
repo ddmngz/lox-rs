@@ -1,3 +1,4 @@
+
 use std::fs::File;
 use std::io::{stdin, Read};
 
@@ -7,11 +8,11 @@ mod scanner;
 pub mod token;
 
 use error::LoxError;
-use parser::ast_printer::AstPrinter;
 use parser::Parser;
 use parser::interpreter::Interpreter;
 use scanner::Scanner;
 use token::Token;
+
 
 #[derive(Default)]
 pub struct Lox {}

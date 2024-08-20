@@ -1,6 +1,6 @@
 use super::error::LoxError;
 use super::error::LoxError::*;
-use crate::lox::token::{Token, TokenType};
+use super::token::{Token, TokenType};
 use phf::phf_map;
 use std::iter::{IntoIterator, Peekable};
 

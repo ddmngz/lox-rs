@@ -1,6 +1,6 @@
 use strum_macros::Display;
 
-type Result<T> = std::result::Result<T, crate::lox::error::LoxRuntimeError>;
+type Result<T> = std::result::Result<T, crate::error::LoxRuntimeError>;
 
 
 pub trait Visitor<T> {

@@ -1,4 +1,4 @@
-use crate::lox::scanner::Scanner;
+use super::Scanner;
 
 impl Scanner {
     pub fn advance_while<F>(&mut self, f: F)

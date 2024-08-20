@@ -1,5 +1,5 @@
 use super::expr::*;
-use crate::lox::error::LoxRuntimeError;
+use crate::error::LoxRuntimeError;
 pub struct AstPrinter;
 
 fn parenthesize(name: &str, args: &[&Expr]) -> String {

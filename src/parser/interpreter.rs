@@ -1,5 +1,5 @@
 use super::expr::*;
-use crate::lox::error::LoxRuntimeError;
+use crate::error::LoxRuntimeError;
 
 pub type LoxObject = LiteralValue;
 pub struct Interpreter {}

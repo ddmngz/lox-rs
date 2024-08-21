@@ -143,20 +143,20 @@ impl Scanner {
         }
     }
 
-    fn handle_number(&mut self, val:char) -> Result<(), LoxError> {
+    fn handle_number(&mut self, val: char) -> Result<(), LoxError> {
         let mut cur_str = String::from(val);
         cur_str.push_str(&self.advance_and_get_literal(char::is_ascii_digit));
 
-        if self.iter.next_if(|x| *x == '.').is_some(){
+        if self.iter.next_if(|x| *x == '.').is_some() {
             cur_str.push('.');
             cur_str.push_str(&self.advance_and_get_literal(char::is_ascii_digit));
-        } 
+        }
         let token = Token::new_number(&cur_str, self.line)?;
         self.tokens.push(token);
         Ok(())
     }
 
-    fn handle_identifier(&mut self, val:char) -> Result<(), LoxError> {
+    fn handle_identifier(&mut self, val: char) -> Result<(), LoxError> {
         let mut cur_str = String::from(val);
         cur_str.push_str(&self.advance_and_get_literal(char::is_ascii_alphanumeric));
         let str_pointer = cur_str.as_str();
@@ -170,42 +170,53 @@ impl Scanner {
     }
 
     fn add_token(&mut self, token: TokenType, literal: &str) -> Result<(), LoxError> {
-        let token = Token::new(token, &literal, self.line);
+        let token = Token::new(token, literal, self.line);
         self.tokens.push(token);
         Ok(())
     }
 }
 
 #[cfg(test)]
-mod tests{
+mod tests {
     use super::*;
     use TokenType::*;
     #[test]
-    fn scan_equation(){
-        compare_scan("1+1", vec![NUMBER(1.0), PLUS,  NUMBER(1.0)])
+    fn scan_equation() {
+        compare_scan("1+1", vec![NUMBER(1.0), PLUS, NUMBER(1.0)])
     }
 
     #[test]
-    fn scan_quotes(){
+    fn scan_quotes() {
         compare_scan("\"hiiii\"", vec![STRING("hiiii".into())])
     }
 
     #[test]
-    fn scan_parens(){
-        compare_scan("({<>)}", vec![LEFTPAREN,LEFTBRACE,LESS,GREATER,RIGHTPAREN,RIGHTBRACE])
+    fn scan_parens() {
+        compare_scan(
+            "({<>)}",
+            vec![LEFTPAREN, LEFTBRACE, LESS, GREATER, RIGHTPAREN, RIGHTBRACE],
+        )
     }
 
     #[test]
-    fn scan_paren_equation(){
-        compare_scan("(1+1)", vec![NUMBER(1.0), PLUS,  NUMBER(1.0)])
+    fn scan_paren_equation() {
+        compare_scan("(1+1)", vec![NUMBER(1.0), PLUS, NUMBER(1.0)])
     }
 
-    fn compare_scan(string:&str, goal:Vec<TokenType>){
-
-        let scanned_tokens:Vec<_> = Scanner::new(string.to_string()).scan_tokens().unwrap().into_iter().map(|x| x.r#type).collect();
+    fn compare_scan(string: &str, goal: Vec<TokenType>) {
+        let scanned_tokens: Vec<_> = Scanner::new(string.to_string())
+            .scan_tokens()
+            .unwrap()
+            .into_iter()
+            .map(|x| x.r#type)
+            .collect();
         println!("{:?}", scanned_tokens);
-        let scanned_tokens = Scanner::new(string.to_string()).scan_tokens().unwrap().into_iter().map(|x| x.r#type);
-        for (scanned_token, goal_token) in std::iter::zip(scanned_tokens,goal){
+        let scanned_tokens = Scanner::new(string.to_string())
+            .scan_tokens()
+            .unwrap()
+            .into_iter()
+            .map(|x| x.r#type);
+        for (scanned_token, goal_token) in std::iter::zip(scanned_tokens, goal) {
             assert_eq!(scanned_token, goal_token)
         }
     }

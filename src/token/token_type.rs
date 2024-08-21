@@ -25,7 +25,7 @@ pub enum TokenType {
     LESSEQUAL,
     #[default]
     IDENTIFIER,
-    /// String and Number store their own 
+    /// String and Number store their own
     /// Internal representation
     STRING(String),
     NUMBER(f64),

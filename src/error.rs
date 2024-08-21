@@ -6,7 +6,7 @@ pub enum LoxError {
     Misused,
     #[error("IO Error: {0}")]
     IO(#[from] std::io::Error),
-    
+
     #[error("Unterminated String")]
     UntermString,
 
@@ -20,11 +20,11 @@ pub enum LoxError {
     ParsingError(#[from] LoxParsingError),
 
     #[error("Runtime Error: {0}")]
-    RuntimeError(#[from]LoxRuntimeError),
+    RuntimeError(#[from] LoxRuntimeError),
 }
 
 #[derive(Debug, Clone, Error)]
-pub enum LoxRuntimeError{
+pub enum LoxRuntimeError {
     #[error("Operator must be a number.")]
     InvalidOperand,
 }
@@ -37,13 +37,11 @@ pub enum LoxParsingError {
     NoExpr,
 }
 
-
 impl LoxError {
     pub fn error(self, line: u32) -> Self {
         self.report(line, "");
         self
     }
-
 
     pub fn report(&self, line: u32, whre: &str) {
         eprintln!("[line {}] Error {}: {}", line, whre, self);

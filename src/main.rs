@@ -1,7 +1,9 @@
 use lox::error::LoxError;
-use lox::parser::ast_printer::AstPrinter;
-use lox::parser::expr::{Binary, Grouping, Literal, Unary, UnaryOperator, BinaryOperator};
 use lox::interpreter::Interpreter;
+use lox::parser::ast::expression::{
+    Binary, BinaryOperator, Grouping, Literal, Unary, UnaryOperator,
+};
+use lox::parser::ast_printer::AstPrinter;
 use lox::Lox;
 use std::cmp::Ordering;
 use std::env;

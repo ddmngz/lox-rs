@@ -1,7 +1,7 @@
+use crate::token::{Token, TokenType};
 use strum_macros::Display;
 
 type Result<T> = std::result::Result<T, crate::error::LoxRuntimeError>;
-
 
 pub trait Visitor<T> {
     fn visit_binary(&self, expr: &Binary) -> Result<T>;
@@ -56,10 +56,9 @@ pub enum LiteralValue {
     Nil,
 }
 
-
 // TODO deduplicate from token_type
 #[derive(Clone, Display, Debug)]
-pub enum BinaryOperator{
+pub enum BinaryOperator {
     #[strum(serialize = "==")]
     EQUALEQUAL,
     #[strum(serialize = "!=")]
@@ -82,11 +81,10 @@ pub enum BinaryOperator{
     SLASH,
 }
 
-use super::super::token::{Token,TokenType};
-impl BinaryOperator{
+impl BinaryOperator {
     // trying really hard to prefer duplication to the wrong abstraction here
-    pub fn from_token(token:Token) -> Option<Self>{
-        match token.r#type{
+    pub fn from_token(token: Token) -> Option<Self> {
+        match token.r#type {
             TokenType::EQUALEQUAL => Some(Self::EQUALEQUAL),
             TokenType::BANGEQUAL => Some(Self::BANGEQUAL),
             TokenType::GREATER => Some(Self::GREATER),
@@ -97,19 +95,18 @@ impl BinaryOperator{
             TokenType::MINUS => Some(Self::MINUS),
             TokenType::STAR => Some(Self::STAR),
             TokenType::SLASH => Some(Self::SLASH),
-            _ => None
+            _ => None,
         }
     }
 }
 
 #[derive(Clone, Display, Debug)]
-pub enum UnaryOperator{
+pub enum UnaryOperator {
     #[strum(serialize = "!")]
     BANG,
     #[strum(serialize = "-")]
     MINUS,
 }
-
 
 #[derive(Clone, Debug)]
 pub struct Unary {

@@ -1,11 +1,12 @@
+pub mod ast;
+#[allow(dead_code)]
 pub mod ast_printer;
-pub mod expr;
 use super::error::LoxParsingError;
 use super::token::TokenType;
 use super::token::TokenType::*;
 use super::Token;
+use ast::expression::{Binary, BinaryOperator, Expr, Grouping, Literal, Unary, UnaryOperator};
 use std::iter::Peekable;
-use expr::{Binary, Expr, Grouping, Literal, Unary, UnaryOperator, BinaryOperator};
 /*
 pub struct Parser{
     iter:Peekable<Enumerate<<Vec<Token> as IntoIterator>::IntoIter>>,
@@ -21,9 +22,7 @@ type Result = std::result::Result<Expr, LoxParsingError>;
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
         let iter = tokens.into_iter().peekable();
-        Self {
-            iter,
-        }
+        Self { iter }
     }
 
     pub fn parse(&mut self) -> Result {
@@ -55,8 +54,12 @@ impl Parser {
     }
 
     fn unary(&mut self) -> Result {
-        while let Some(token) = self.iter.next_if(|x| [BANG, MINUS].contains(&x.r#type)) {
-            let operator = if token.r#type == BANG {UnaryOperator::BANG} else {UnaryOperator::MINUS};
+        if let Some(token) = self.iter.next_if(|x| [BANG, MINUS].contains(&x.r#type)) {
+            let operator = if token.r#type == BANG {
+                UnaryOperator::BANG
+            } else {
+                UnaryOperator::MINUS
+            };
             let right = self.unary()?;
             return Ok(Unary::new(operator, right));
         }
@@ -83,7 +86,7 @@ impl Parser {
 impl Parser {
     fn recursive_descend(&mut self, f: fn(&mut Self) -> Result, types: &mut [TokenType]) -> Result {
         let mut expr: Expr = f(self)?;
-// TODO: see if there's a way we can combine the while let to remove the unwrap
+        // TODO: see if there's a way we can combine the while let to remove the unwrap
         while let Some(token) = self.iter.next_if(|x| types.contains(&x.r#type)) {
             let operator = BinaryOperator::from_token(token).unwrap();
             let right = f(self)?;

@@ -1,20 +1,17 @@
-
 use std::fs::File;
 use std::io::{stdin, Read};
 
 pub mod error;
+pub mod interpreter;
 pub mod parser;
 pub mod scanner;
 pub mod token;
-pub mod interpreter;
 
 use error::LoxError;
-use parser::Parser;
 use interpreter::Interpreter;
+use parser::Parser;
 use scanner::Scanner;
 use token::Token;
-use parser::ast_printer::AstPrinter;
-
 
 #[derive(Default)]
 pub struct Lox {}
@@ -46,16 +43,11 @@ impl Lox {
         let tokens: Vec<Token> = scan.scan_tokens()?;
         let mut parser = Parser::new(tokens);
         let expr = parser.parse()?;
-        let interpreter = Interpreter{};
-        let mut printer = AstPrinter::new();
-    
-        let ret = match interpreter.interpret(&expr){
+        let interpreter = Interpreter {};
+
+        match interpreter.interpret(&expr) {
             Ok(()) => Ok(()),
             Err(e) => Err(LoxError::RuntimeError(e)),
-        };
-
-
-        ret
-    
+        }
     }
 }

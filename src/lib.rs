@@ -44,9 +44,6 @@ impl Lox {
     fn run(&mut self, message: String) -> Result<(), LoxError> {
         let scan = Scanner::new(message);
         let tokens: Vec<Token> = scan.scan_tokens()?;
-        for token in &tokens{
-            println!("{token}")
-        }
         let mut parser = Parser::new(tokens);
         let expr = parser.parse()?;
 

@@ -62,7 +62,6 @@ impl Scanner {
     fn scan_token(&mut self) -> Result<(), LoxError> {
         let value = self.iter.next().unwrap();
         use TokenType::*;
-        println!("on token {value}");
         match value {
             '(' => self.add_char(LEFTPAREN, value),
             ')' => self.add_char(RIGHTPAREN, value),
@@ -146,11 +145,11 @@ impl Scanner {
 
     fn handle_number(&mut self, val:char) -> Result<(), LoxError> {
         let mut cur_str = String::from(val);
-        cur_str.push_str(&self.advance_and_get_literal(|x| x.is_ascii_digit()));
+        cur_str.push_str(&self.advance_and_get_literal(char::is_ascii_digit));
 
-        if self.iter.next().is_some_and(|x| x == '.') {
+        if self.iter.next_if(|x| *x == '.').is_some(){
             cur_str.push('.');
-            cur_str.push_str(&self.advance_and_get_literal(|x| x.is_ascii_digit()));
+            cur_str.push_str(&self.advance_and_get_literal(char::is_ascii_digit));
         } 
         let token = Token::new_number(&cur_str, self.line)?;
         self.tokens.push(token);
@@ -159,7 +158,7 @@ impl Scanner {
 
     fn handle_identifier(&mut self, val:char) -> Result<(), LoxError> {
         let mut cur_str = String::from(val);
-        cur_str.push_str(&self.advance_and_get_literal(|x| x.is_ascii_alphanumeric()));
+        cur_str.push_str(&self.advance_and_get_literal(char::is_ascii_alphanumeric));
         let str_pointer = cur_str.as_str();
         let token;
         if let Some(tok) = KEYWORDS.get(str_pointer) {
@@ -183,7 +182,7 @@ mod tests{
     use TokenType::*;
     #[test]
     fn scan_equation(){
-        compare_scan("1+1", vec![PLUS, NUMBER(1.0), NUMBER(1.0)])
+        compare_scan("1+1", vec![NUMBER(1.0), PLUS,  NUMBER(1.0)])
     }
 
     #[test]
@@ -194,6 +193,11 @@ mod tests{
     #[test]
     fn scan_parens(){
         compare_scan("({<>)}", vec![LEFTPAREN,LEFTBRACE,LESS,GREATER,RIGHTPAREN,RIGHTBRACE])
+    }
+
+    #[test]
+    fn scan_paren_equation(){
+        compare_scan("(1+1)", vec![NUMBER(1.0), PLUS,  NUMBER(1.0)])
     }
 
     fn compare_scan(string:&str, goal:Vec<TokenType>){

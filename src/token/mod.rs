@@ -4,7 +4,7 @@ use std::num::ParseFloatError;
 use std::str::FromStr;
 pub use token_type::TokenType;
 /// The Token struct and funcitonality
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct Token {
     /// What the token this is, also stores value
     pub r#type: TokenType,

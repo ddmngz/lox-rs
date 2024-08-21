@@ -62,7 +62,7 @@ impl Scanner {
     fn scan_token(&mut self) -> Result<(), LoxError> {
         let value = self.iter.next().unwrap();
         use TokenType::*;
-
+        println!("on token {value}");
         match value {
             '(' => self.add_char(LEFTPAREN, value),
             ')' => self.add_char(RIGHTPAREN, value),
@@ -77,7 +77,7 @@ impl Scanner {
             '!' => self.add_operator(BANGEQUAL, BANG, value),
             '=' => self.add_operator(EQUALEQUAL, EQUAL, value),
             '<' => self.add_operator(LESSEQUAL, LESS, value),
-            '>' => self.add_operator(GREATEREQUAL, LESS, value),
+            '>' => self.add_operator(GREATEREQUAL, GREATER, value),
             '/' => {
                 if self.check_next('/') {
                     self.advance_while(|x| *x != '\n');
@@ -174,5 +174,35 @@ impl Scanner {
         let token = Token::new(token, &literal, self.line);
         self.tokens.push(token);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests{
+    use super::*;
+    use TokenType::*;
+    #[test]
+    fn scan_equation(){
+        compare_scan("1+1", vec![PLUS, NUMBER(1.0), NUMBER(1.0)])
+    }
+
+    #[test]
+    fn scan_quotes(){
+        compare_scan("\"hiiii\"", vec![STRING("hiiii".into())])
+    }
+
+    #[test]
+    fn scan_parens(){
+        compare_scan("({<>)}", vec![LEFTPAREN,LEFTBRACE,LESS,GREATER,RIGHTPAREN,RIGHTBRACE])
+    }
+
+    fn compare_scan(string:&str, goal:Vec<TokenType>){
+
+        let scanned_tokens:Vec<_> = Scanner::new(string.to_string()).scan_tokens().unwrap().into_iter().map(|x| x.r#type).collect();
+        println!("{:?}", scanned_tokens);
+        let scanned_tokens = Scanner::new(string.to_string()).scan_tokens().unwrap().into_iter().map(|x| x.r#type);
+        for (scanned_token, goal_token) in std::iter::zip(scanned_tokens,goal){
+            assert_eq!(scanned_token, goal_token)
+        }
     }
 }

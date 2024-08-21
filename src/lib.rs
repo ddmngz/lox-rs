@@ -13,6 +13,7 @@ use parser::Parser;
 use interpreter::Interpreter;
 use scanner::Scanner;
 use token::Token;
+use parser::ast_printer::AstPrinter;
 
 
 #[derive(Default)]
@@ -43,19 +44,22 @@ impl Lox {
     fn run(&mut self, message: String) -> Result<(), LoxError> {
         let scan = Scanner::new(message);
         let tokens: Vec<Token> = scan.scan_tokens()?;
+        for token in &tokens{
+            println!("{token}")
+        }
         let mut parser = Parser::new(tokens);
         let expr = parser.parse()?;
 
         let interpreter = Interpreter{};
-        
-        match interpreter.interpret(&expr){
+        let mut printer = AstPrinter::new();
+    
+        let ret = match interpreter.interpret(&expr){
             Ok(()) => Ok(()),
             Err(e) => Err(LoxError::RuntimeError(e)),
-        }
-        /*
-        let mut printer = AstPrinter::new();
-        println!("{}", printer.print(expr));
-        */
+        };
 
+        println!("{}", printer.print(expr));
+        ret
+    
     }
 }

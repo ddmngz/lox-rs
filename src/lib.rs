@@ -46,7 +46,6 @@ impl Lox {
         let tokens: Vec<Token> = scan.scan_tokens()?;
         let mut parser = Parser::new(tokens);
         let expr = parser.parse()?;
-
         let interpreter = Interpreter{};
         let mut printer = AstPrinter::new();
     
@@ -55,7 +54,7 @@ impl Lox {
             Err(e) => Err(LoxError::RuntimeError(e)),
         };
 
-        println!("{}", printer.print(expr));
+
         ret
     
     }

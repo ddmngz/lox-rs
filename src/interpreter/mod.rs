@@ -55,7 +55,8 @@ impl Visitor<LoxObject> for Interpreter {
     }
 
     fn visit_grouping(&self, expr: &Grouping) -> Result<LoxObject> {
-        self.evaluate(&Expr::Grouping(expr.clone()))
+        let expression = *expr.expression.clone();
+        self.evaluate(&expression)
     }
     fn visit_literal(&self, expr: &Literal) -> Result<LoxObject> {
         // could remove the clone soon

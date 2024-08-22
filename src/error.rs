@@ -35,6 +35,8 @@ pub enum LoxParsingError {
     UntermParen,
     #[error("Expected Expression.")]
     NoExpr,
+    #[error("Expect ';' after expression.")]
+    NoSemi,
 }
 
 impl LoxError {

@@ -1,58 +1,52 @@
 use super::parser::ast::expression::*;
 use crate::error::LoxRuntimeError;
 
+use std::{cmp, ops};
 pub type LoxObject = LiteralValue;
 pub struct Interpreter {}
 
 pub type Result<T> = std::result::Result<T, LoxRuntimeError>;
 
-fn is_equal(left: LoxObject, right: LoxObject) -> bool {
-    use LiteralValue::{Bool, Float, Nil, String};
-    match (left, right) {
-        (Nil, Nil) => true,
-        (Bool(a), Bool(b)) => a == b,
-        (String(a), String(b)) => a == b,
-        // should be unreachable, might be worth reviewing control flow at some point
-        (Float(_), Float(_)) => panic!("somehow ended up comparing two floats in is_equal"),
-        (_, _) => false,
+
+impl Interpreter {
+    fn evaluate(&self, expr: &Expr) -> Result<LoxObject> {
+        walk_expr(self, expr)
+    }
+    pub fn interpret(self, expr: &Expr) -> Result<()> {
+        let value = self.evaluate(expr)?;
+        println!("{}", value);
+        Ok(())
     }
 }
 
-// one could do this by instead implementing like Add, Subtract, Cmp, and PartialEq for LoxObject
+
 impl Visitor<LoxObject> for Interpreter {
     fn visit_binary(&self, expr: &Binary) -> Result<LoxObject> {
         use BinaryOperator::{
             BANGEQUAL, EQUALEQUAL, GREATER, GREATEREQUAL, LESS, LESSEQUAL, MINUS, PLUS, SLASH, STAR,
         };
-        use LiteralValue::{Bool, Float, String};
+        use LiteralValue::Bool;
 
         let left = self.evaluate(&expr.left)?;
         let right = self.evaluate(&expr.right)?;
 
-        let (left, right) = match (left, right) {
-            (Float(left), Float(right)) => (left, right),
-            (String(left), String(right)) => {
-                return Ok(LoxObject::String(format!("{left}{right}")))
-            }
-            (left, right) => match expr.operator {
-                BANGEQUAL => return Ok(Bool(!is_equal(left, right))),
-                EQUALEQUAL => return Ok(Bool(is_equal(left, right))),
-                _ => return Err(LoxRuntimeError::InvalidOperand),
-            },
-        };
+        // can_compare does the typecheck so that we throw invalidOperand when comparing instead of
+        // returning false
+        let can_compare = left.partial_cmp(&right).is_some();
 
-        Ok(match expr.operator {
-            PLUS => Float(left + right),
-            MINUS => Float(left - right),
-            STAR => Float(left * right),
-            SLASH => Float(left / right),
-            GREATER => Bool(left > right),
-            GREATEREQUAL => Bool(left >= right),
-            LESS => Bool(left < right),
-            LESSEQUAL => Bool(left <= right),
-            EQUALEQUAL => Bool(left == right),
-            BANGEQUAL => Bool(left != right),
-        })
+        match expr.operator {
+            PLUS => left + right,
+            MINUS => left - right,
+            STAR => left * right,
+            SLASH => left / right,
+            GREATER if can_compare => Ok(Bool(left > right)),
+            GREATEREQUAL if can_compare => Ok(Bool(left >= right)),
+            LESS if can_compare => Ok(Bool(left < right)),
+            LESSEQUAL if can_compare => Ok(Bool(left <= right)),
+            EQUALEQUAL if can_compare => Ok(Bool(left == right)),
+            BANGEQUAL if can_compare => Ok(Bool(left != right)),
+            _ => Err(LoxRuntimeError::InvalidOperand),
+        }
     }
 
     fn visit_grouping(&self, expr: &Grouping) -> Result<LoxObject> {
@@ -65,41 +59,110 @@ impl Visitor<LoxObject> for Interpreter {
     }
     fn visit_unary(&self, expr: &Unary) -> Result<LoxObject> {
         let right = self.evaluate(&expr.right)?;
-        Ok(match expr.operator {
-            UnaryOperator::MINUS => LoxObject::Float(-1.0 * right.cast_float()?),
-            UnaryOperator::BANG => not_truthy(right),
-        })
+        match expr.operator {
+            UnaryOperator::MINUS => -right,
+            UnaryOperator::BANG => !right,
+        }
     }
 }
 
-fn not_truthy(value: LoxObject) -> LoxObject {
-    LoxObject::Bool(!is_truthy(value))
-}
+// logic for evaluating is handled through trait implementations, returning Error for invalid type
+// conversions
 
-fn is_truthy(value: LoxObject) -> bool {
-    match value {
-        LoxObject::Bool(b) => b,
-        LoxObject::Nil => false,
-        _ => true,
+impl std::ops::Neg for LoxObject {
+    type Output = Result<LoxObject>;
+    fn neg(self) -> Self::Output {
+        use LiteralValue::Float;
+        if let Float(value) = self {
+            Ok(Float(-value))
+        } else {
+            Err(LoxRuntimeError::InvalidOperand)
+        }
     }
 }
 
-impl LoxObject {
-    fn cast_float(&self) -> Result<f64> {
-        match self {
-            LoxObject::Float(val) => Ok(*val),
+impl std::ops::Not for LoxObject {
+    type Output = Result<LoxObject>;
+    // Lox semantics are that Nil is false, so !Nil = true for some reason even though that's kind
+    // of evil
+    fn not(self) -> Self::Output {
+        Ok(LoxObject::Bool(match self {
+            LoxObject::Bool(b) => !b,
+            LoxObject::Nil => true,
+            _ => false,
+        }))
+    }
+}
+
+
+impl ops::Add for LoxObject {
+    type Output = Result<LoxObject>;
+    fn add(self, other: Self) -> Self::Output {
+        use LiteralValue::*;
+        match (self, other) {
+            (Float(left), Float(right)) => Ok(Float(left + right)),
+            (String(left), String(right)) => Ok(String(format!("{left}{right}"))),
             _ => Err(LoxRuntimeError::InvalidOperand),
         }
     }
 }
 
-impl Interpreter {
-    fn evaluate(&self, expr: &Expr) -> Result<LoxObject> {
-        walk_expr(self, expr)
+impl ops::Sub for LoxObject {
+    type Output = Result<LoxObject>;
+    fn sub(self, other: Self) -> Self::Output {
+        use LiteralValue::Float;
+        if let (Float(left), Float(right)) = (self, other) {
+            Ok(Float(left - right))
+        } else {
+            Err(LoxRuntimeError::InvalidOperand)
+        }
     }
-    pub fn interpret(self, expr: &Expr) -> Result<()> {
-        let value = self.evaluate(expr)?;
-        println!("{}", value);
-        Ok(())
+}
+
+impl ops::Mul for LoxObject {
+    type Output = Result<LoxObject>;
+    fn mul(self, other: Self) -> Self::Output {
+        use LiteralValue::Float;
+        if let (Float(left), Float(right)) = (self, other) {
+            Ok(Float(left * right))
+        } else {
+            Err(LoxRuntimeError::InvalidOperand)
+        }
+    }
+}
+
+impl ops::Div for LoxObject {
+    type Output = Result<LoxObject>;
+    fn div(self, other: Self) -> Self::Output {
+        use LiteralValue::Float;
+        if let (Float(left), Float(right)) = (self, other) {
+            Ok(Float(left / right))
+        } else {
+            Err(LoxRuntimeError::InvalidOperand)
+        }
+    }
+}
+
+impl cmp::PartialEq for LoxObject {
+    fn eq(&self, other: &Self) -> bool {
+        use LiteralValue::{Bool, Float, Nil, String};
+        match (self, other) {
+            (Nil, Nil) => true,
+            (Bool(a), Bool(b)) => a == b,
+            (String(a), String(b)) => a == b,
+            (Float(a), Float(b)) => a == b,
+            (_, _) => false,
+        }
+    }
+}
+
+impl cmp::PartialOrd for LoxObject {
+    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+        use LiteralValue::Float;
+        if let (Float(left), Float(right)) = (self, other) {
+            left.partial_cmp(right)
+        } else {
+            None
+        }
     }
 }

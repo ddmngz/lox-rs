@@ -1,5 +1,4 @@
 use super::ast::expression::*;
-use crate::error::LoxRuntimeError;
 #[derive(Default)]
 pub struct AstPrinter;
 
@@ -51,18 +50,18 @@ impl AstPrinter {
 }
 
 impl Visitor<String> for AstPrinter {
-    fn visit_binary(&self, expr: &Binary) -> Result<String, LoxRuntimeError> {
+    fn visit_binary(&self, expr: &Binary) -> Result<String> {
         Ok(self.visit_binary(expr))
     }
-    fn visit_grouping(&self, expr: &Grouping) -> Result<String, LoxRuntimeError> {
+    fn visit_grouping(&self, expr: &Grouping) -> Result<String> {
         Ok(self.visit_grouping(expr))
     }
 
-    fn visit_literal(&self, expr: &Literal) -> Result<String, LoxRuntimeError> {
+    fn visit_literal(&self, expr: &Literal) -> Result<String> {
         Ok(self.visit_literal(expr))
     }
 
-    fn visit_unary(&self, expr: &Unary) -> Result<String, LoxRuntimeError> {
+    fn visit_unary(&self, expr: &Unary) -> Result<String> {
         Ok(self.visit_unary(expr))
     }
 }

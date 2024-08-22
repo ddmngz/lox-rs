@@ -6,6 +6,7 @@ use super::token::TokenType;
 use super::token::TokenType::*;
 use super::Token;
 use ast::expression::{Binary, BinaryOperator, Expr, Grouping, Literal, Unary, UnaryOperator};
+use ast::statement::Statement;
 use std::iter::Peekable;
 /*
 pub struct Parser{
@@ -17,7 +18,7 @@ pub struct Parser {
     iter: Peekable<<Vec<Token> as IntoIterator>::IntoIter>,
 }
 
-type Result = std::result::Result<Expr, LoxParsingError>;
+type Result<T> = std::result::Result<T, LoxParsingError>;
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
@@ -25,35 +26,62 @@ impl Parser {
         Self { iter }
     }
 
-    pub fn parse(&mut self) -> Result {
-        self.expression()
+    pub fn parse(&mut self) -> Result<Vec<Statement>> {
+        let mut statements = Vec::new();
+        while let Some(token) = self.iter.next(){
+            statements.push(match token.r#type{
+                PRINT => self.print_statement()?,
+                _ => self.expression_statement()?,
+
+            });
+        }
+
+        Ok(statements)
     }
 
-    fn expression(&mut self) -> Result {
+    fn print_statement(&mut self) -> Result<Statement>{
+        let value = self.expression()?;
+        if self.iter.next_if(|x| x.r#type == SEMICOLON).is_some(){
+            Ok(Statement::Print(value))
+        }else{
+            Err(LoxParsingError::NoSemi)
+        }
+    }
+
+    fn expression_statement(&mut self) -> Result<Statement>{
+        let value = self.expression()?;
+        if self.iter.next_if(|x| x.r#type == SEMICOLON).is_some(){
+            Ok(Statement::Expression(value))
+        }else{
+            Err(LoxParsingError::NoSemi)
+        }
+    }
+
+    fn expression(&mut self) -> Result<Expr> {
         self.equality()
     }
 
-    fn equality(&mut self) -> Result {
+    fn equality(&mut self) -> Result<Expr> {
         let mut types = [BANGEQUAL, EQUALEQUAL];
         self.recursive_descend(Self::comparison, &mut types)
     }
 
-    fn comparison(&mut self) -> Result {
+    fn comparison(&mut self) -> Result<Expr> {
         let mut types = [GREATER, GREATEREQUAL, LESS, LESSEQUAL];
         self.recursive_descend(Self::term, &mut types)
     }
 
-    fn term(&mut self) -> Result {
+    fn term(&mut self) -> Result<Expr> {
         let mut types = [MINUS, PLUS];
         self.recursive_descend(Self::factor, &mut types)
     }
 
-    fn factor(&mut self) -> Result {
+    fn factor(&mut self) -> Result<Expr> {
         let mut types = [SLASH, STAR];
         self.recursive_descend(Self::unary, &mut types)
     }
 
-    fn unary(&mut self) -> Result {
+    fn unary(&mut self) -> Result<Expr> {
         if let Some(token) = self.iter.next_if(|x| [BANG, MINUS].contains(&x.r#type)) {
             let operator = if token.r#type == BANG {
                 UnaryOperator::BANG
@@ -66,7 +94,7 @@ impl Parser {
         self.primary()
     }
 
-    fn primary(&mut self) -> Result {
+    fn primary(&mut self) -> Result<Expr> {
         if self.iter.peek().is_none() {
             return Err(LoxParsingError::NoExpr);
         }
@@ -84,7 +112,7 @@ impl Parser {
 }
 
 impl Parser {
-    fn recursive_descend(&mut self, f: fn(&mut Self) -> Result, types: &mut [TokenType]) -> Result {
+    fn recursive_descend(&mut self, f: fn(&mut Self) -> Result<Expr>, types: &mut [TokenType]) -> Result<Expr> {
         let mut expr: Expr = f(self)?;
         // TODO: see if there's a way we can combine the while let to remove the unwrap
         while let Some(token) = self.iter.next_if(|x| types.contains(&x.r#type)) {
@@ -95,7 +123,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn handle_paren(&mut self) -> Result {
+    fn handle_paren(&mut self) -> Result<Expr> {
         let expr = self.expression()?;
         if self.iter.next_if(|x| x.r#type == RIGHTPAREN).is_some() {
             Ok(Grouping::new(expr))

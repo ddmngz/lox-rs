@@ -1,7 +1,7 @@
 use crate::token::{Token, TokenType};
 use strum_macros::Display;
 
-type Result<T> = std::result::Result<T, crate::error::LoxRuntimeError>;
+pub type Result<T> = std::result::Result<T, crate::error::LoxRuntimeError>;
 
 pub trait Visitor<T> {
     fn visit_binary(&self, expr: &Binary) -> Result<T>;

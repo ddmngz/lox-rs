@@ -44,10 +44,12 @@ impl Lox {
         let mut parser = Parser::new(tokens);
         let expr = parser.parse()?;
         let interpreter = Interpreter {};
-
+        
+        /*
         match interpreter.interpret(&expr) {
             Ok(()) => Ok(()),
             Err(e) => Err(LoxError::RuntimeError(e)),
-        }
+        }*/
+        todo!()
     }
 }

@@ -1,4 +1,5 @@
-use super::parser::ast::expression::*;
+use super::parser::ast::expression::{self, *};
+use super::parser::ast::statement;
 use crate::error::LoxRuntimeError;
 
 use std::{cmp, ops};
@@ -18,7 +19,17 @@ impl Interpreter {
     }
 }
 
-impl Visitor<LoxObject> for Interpreter {
+impl statement::Visitor<LoxObject> for Interpreter {
+    fn visit_expression(expression: Expr) -> Result<LoxObject> {
+        todo!()
+    }
+
+    fn visit_print(expression: Expr) -> Result<LoxObject> {
+        todo!()
+    }
+}
+
+impl expression::Visitor<LoxObject> for Interpreter {
     fn visit_binary(&self, expr: &Binary) -> Result<LoxObject> {
         use BinaryOperator::{
             BANGEQUAL, EQUALEQUAL, GREATER, GREATEREQUAL, LESS, LESSEQUAL, MINUS, PLUS, SLASH, STAR,

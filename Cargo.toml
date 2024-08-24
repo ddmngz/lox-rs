@@ -10,3 +10,5 @@ edition = "2021"
     strum = "0.26.3"
     strum_macros = "0.26.3"
     thiserror = "1.0.63"
+    byteyarn = "0.5.1"
+

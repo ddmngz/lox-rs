@@ -38,7 +38,7 @@ impl AstPrinter {
         use LiteralValue::*;
         match &expr.value {
             Float(f) => f.to_string(),
-            r#String(s) => s.clone(),
+            r#String(s) => format!("{s}"),
             Nil => "nil".to_string(),
             Bool(b) => b.to_string(),
         }

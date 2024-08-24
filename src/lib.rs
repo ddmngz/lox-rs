@@ -10,10 +10,7 @@ pub mod token;
 use error::LoxError;
 use interpreter::Interpreter;
 use parser::Parser;
-use scanner::Scanner;
 use token::Token;
-
-
 
 pub fn run_file(file_name: &str) -> Result<(), LoxError> {
     let mut file = File::open(file_name).unwrap();
@@ -35,12 +32,11 @@ pub fn run_prompt() -> Result<(), LoxError> {
 }
 
 fn run(message: String) -> Result<(), LoxError> {
-    let scan = Scanner::new(message);
-    let tokens: Vec<Token> = scan.scan_tokens()?;
+    let tokens: Vec<Token> = scanner::scan(&message)?;
     let mut parser = Parser::new(tokens);
     let expr = parser.parse()?;
     let interpreter = Interpreter {};
-    
+
     /*
     match interpreter.interpret(&expr) {
         Ok(()) => Ok(()),

@@ -7,7 +7,6 @@ pub struct Interpreter {}
 
 pub type Result<T> = std::result::Result<T, LoxRuntimeError>;
 
-
 impl Interpreter {
     fn evaluate(&self, expr: &Expr) -> Result<LoxObject> {
         walk_expr(self, expr)
@@ -18,7 +17,6 @@ impl Interpreter {
         Ok(())
     }
 }
-
 
 impl Visitor<LoxObject> for Interpreter {
     fn visit_binary(&self, expr: &Binary) -> Result<LoxObject> {
@@ -94,14 +92,13 @@ impl std::ops::Not for LoxObject {
     }
 }
 
-
 impl ops::Add for LoxObject {
     type Output = Result<LoxObject>;
     fn add(self, other: Self) -> Self::Output {
         use LiteralValue::*;
         match (self, other) {
             (Float(left), Float(right)) => Ok(Float(left + right)),
-            (String(left), String(right)) => Ok(String(format!("{left}{right}"))),
+            (String(left), String(right)) => Ok(String(format!("{left}{right}").into())),
             _ => Err(LoxRuntimeError::InvalidOperand),
         }
     }

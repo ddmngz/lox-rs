@@ -28,31 +28,30 @@ impl Parser {
 
     pub fn parse(&mut self) -> Result<Vec<Statement>> {
         let mut statements = Vec::new();
-        while let Some(token) = self.iter.next(){
-            statements.push(match token.r#type{
+        while let Some(token) = self.iter.next() {
+            statements.push(match token.type_ {
                 PRINT => self.print_statement()?,
                 _ => self.expression_statement()?,
-
             });
         }
 
         Ok(statements)
     }
 
-    fn print_statement(&mut self) -> Result<Statement>{
+    fn print_statement(&mut self) -> Result<Statement> {
         let value = self.expression()?;
-        if self.iter.next_if(|x| x.r#type == SEMICOLON).is_some(){
+        if self.iter.next_if(|x| x.type_ == SEMICOLON).is_some() {
             Ok(Statement::Print(value))
-        }else{
+        } else {
             Err(LoxParsingError::NoSemi)
         }
     }
 
-    fn expression_statement(&mut self) -> Result<Statement>{
+    fn expression_statement(&mut self) -> Result<Statement> {
         let value = self.expression()?;
-        if self.iter.next_if(|x| x.r#type == SEMICOLON).is_some(){
+        if self.iter.next_if(|x| x.type_ == SEMICOLON).is_some() {
             Ok(Statement::Expression(value))
-        }else{
+        } else {
             Err(LoxParsingError::NoSemi)
         }
     }
@@ -82,8 +81,8 @@ impl Parser {
     }
 
     fn unary(&mut self) -> Result<Expr> {
-        if let Some(token) = self.iter.next_if(|x| [BANG, MINUS].contains(&x.r#type)) {
-            let operator = if token.r#type == BANG {
+        if let Some(token) = self.iter.next_if(|x| [BANG, MINUS].contains(&x.type_)) {
+            let operator = if token.type_ == BANG {
                 UnaryOperator::BANG
             } else {
                 UnaryOperator::MINUS
@@ -99,12 +98,15 @@ impl Parser {
             return Err(LoxParsingError::NoExpr);
         }
 
-        match self.iter.next().unwrap().r#type {
+        match self.iter.next().unwrap().type_ {
             FALSE => Ok(Literal::r#false()),
             TRUE => Ok(Literal::r#true()),
             NIL => Ok(Literal::r#nil()),
-            NUMBER(num) => Ok(Literal::float(num)),
-            STRING(r#str) => Ok(Literal::string(&r#str)),
+            NUMBER {
+                lexeme: _,
+                value: num,
+            } => Ok(Literal::float(num)),
+            STRING(str_) => Ok(Literal::string(str_)),
             LEFTPAREN => self.handle_paren(),
             _ => Err(LoxParsingError::NoExpr),
         }
@@ -112,10 +114,14 @@ impl Parser {
 }
 
 impl Parser {
-    fn recursive_descend(&mut self, f: fn(&mut Self) -> Result<Expr>, types: &mut [TokenType]) -> Result<Expr> {
+    fn recursive_descend(
+        &mut self,
+        f: fn(&mut Self) -> Result<Expr>,
+        types: &mut [TokenType],
+    ) -> Result<Expr> {
         let mut expr: Expr = f(self)?;
         // TODO: see if there's a way we can combine the while let to remove the unwrap
-        while let Some(token) = self.iter.next_if(|x| types.contains(&x.r#type)) {
+        while let Some(token) = self.iter.next_if(|x| types.contains(&x.type_)) {
             let operator = BinaryOperator::from_token(token).unwrap();
             let right = f(self)?;
             expr = Binary::new(expr, operator, right);
@@ -125,7 +131,7 @@ impl Parser {
 
     fn handle_paren(&mut self) -> Result<Expr> {
         let expr = self.expression()?;
-        if self.iter.next_if(|x| x.r#type == RIGHTPAREN).is_some() {
+        if self.iter.next_if(|x| x.type_ == RIGHTPAREN).is_some() {
             Ok(Grouping::new(expr))
         } else {
             Err(LoxParsingError::UntermParen)
@@ -140,7 +146,7 @@ impl Parser {
         }
 
         while let Some(token) = self.iter.peek() {
-            let token_type = &token.r#type;
+            let token_type = &token.type_;
             if *token_type == SEMICOLON {
                 self.iter.next();
                 return;

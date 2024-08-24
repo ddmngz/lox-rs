@@ -1,4 +1,5 @@
 use crate::token::{Token, TokenType};
+use byteyarn::ByteYarn;
 use strum_macros::Display;
 
 pub type Result<T> = std::result::Result<T, crate::error::LoxRuntimeError>;
@@ -49,7 +50,7 @@ pub enum LiteralValue {
     #[strum(serialize = "{0}")]
     Float(f64),
     #[strum(serialize = "{0}")]
-    String(String),
+    String(ByteYarn),
     #[strum(serialize = "{0}")]
     Bool(bool),
     #[strum(serialize = "nil")]
@@ -84,7 +85,7 @@ pub enum BinaryOperator {
 impl BinaryOperator {
     // trying really hard to prefer duplication to the wrong abstraction here
     pub fn from_token(token: Token) -> Option<Self> {
-        match token.r#type {
+        match token.type_ {
             TokenType::EQUALEQUAL => Some(Self::EQUALEQUAL),
             TokenType::BANGEQUAL => Some(Self::BANGEQUAL),
             TokenType::GREATER => Some(Self::GREATER),
@@ -139,9 +140,9 @@ impl Literal {
         })
     }
 
-    pub fn string(value: &str) -> Expr {
+    pub fn string(value: ByteYarn) -> Expr {
         Expr::Literal(Self {
-            value: LiteralValue::String(String::from(value)),
+            value: LiteralValue::String(value),
         })
     }
 

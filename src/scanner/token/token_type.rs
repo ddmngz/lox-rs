@@ -1,7 +1,9 @@
 use byteyarn::ByteYarn;
 use std::fmt;
+use phf::phf_map;
+
 /// Every Possible Type of Token
-#[allow(clippy::upper_case_acronyms, dead_code)]
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, Default, PartialEq)]
 pub enum TokenType {
     LEFTPAREN,
@@ -67,3 +69,33 @@ impl fmt::Display for TokenType {
         }
     }
 }
+
+impl TokenType {
+    pub fn from_keyword(keyword: &str) -> Option<Self>{
+        KEYWORDS.get(keyword).cloned()
+    }
+}
+static KEYWORDS: phf::Map<&'static str, TokenType> = {
+    use TokenType::*;
+    phf_map! {
+        "and" => AND,
+        "class" => CLASS,
+        "else" => ELSE,
+        "false" => FALSE,
+        "for" => FOR,
+        "fun" => FUN,
+        "if" => IF,
+        "nil" => NIL,
+        "or" => OR,
+        "print" => PRINT,
+        "return" => RETURN,
+        "super" => SUPER,
+        "this" => THIS,
+        "true" => TRUE,
+        "var" => VAR,
+        "while" => WHILE,
+    }
+};
+
+
+

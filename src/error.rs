@@ -1,4 +1,7 @@
 use thiserror::Error;
+use crate::scanner::ScanningError;
+use crate::parser::ParsingError;
+use crate::interpreter::RuntimeError;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -17,32 +20,9 @@ pub enum Error {
     RuntimeError(#[from] RuntimeError),
 }
 
-#[derive(Debug, Error)]
-pub enum ScanningError{
-    #[error("Unterminated String")]
-    UntermString,
-    #[error("Unexpected Character")]
-    Syntax,
-    #[error("Float Parsing Error")]
-    FloatParse(#[from] std::num::ParseFloatError),
-}
 
 
-#[derive(Debug, Clone, Error)]
-pub enum RuntimeError {
-    #[error("Operator must be a number.")]
-    InvalidOperand,
-}
 
-#[derive(Debug, Clone, Error)]
-pub enum ParsingError {
-    #[error("Expected ')' after expression.")]
-    UntermParen,
-    #[error("Expected Expression.")]
-    NoExpr,
-    #[error("Expect ';' after expression.")]
-    NoSemi,
-}
 
 impl Error {
     pub fn error(self, line: u32) -> Self {

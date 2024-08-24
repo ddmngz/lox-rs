@@ -1,9 +1,8 @@
 use crate::parser::ast::{expression::{self, *},statement::{self, Statement}, lox_object::LoxObject};
-use crate::error::LoxRuntimeError;
-
+use super::error::RuntimeError;
+use super::Result;
 pub struct Interpreter {}
 
-pub type Result<T> = std::result::Result<T, LoxRuntimeError>;
 
 
 impl Interpreter {
@@ -57,7 +56,7 @@ impl expression::Visitor<LoxObject> for Interpreter {
             LESSEQUAL if can_compare => Ok(Bool(left <= right)),
             EQUALEQUAL if can_compare => Ok(Bool(left == right)),
             BANGEQUAL if can_compare => Ok(Bool(left != right)),
-            _ => Err(LoxRuntimeError::InvalidOperand),
+            _ => Err(RuntimeError::InvalidOperand),
         }
     }
 

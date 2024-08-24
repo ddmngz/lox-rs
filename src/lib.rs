@@ -5,11 +5,9 @@ pub mod error;
 pub mod interpreter;
 pub mod parser;
 pub mod scanner;
-pub mod token;
 
 use error::Error;
 use parser::Parser;
-use token::Token;
 
 pub fn run_file(file_name: &str) -> Result<(), Error> {
     let mut file = File::open(file_name).unwrap();
@@ -31,7 +29,7 @@ pub fn run_prompt() -> Result<(), Error> {
 }
 
 fn run(message: String) -> Result<(), Error> {
-    let tokens: Vec<Token> = scanner::scan(&message)?;
+    let tokens = scanner::scan(&message)?;
     let mut parser = Parser::new(tokens);
     let statements = parser.parse()?.into_iter();
 

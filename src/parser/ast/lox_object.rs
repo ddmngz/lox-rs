@@ -1,9 +1,9 @@
 use strum_macros::Display;
 use byteyarn::ByteYarn;
-use crate::error::LoxRuntimeError;
+use crate::interpreter::RuntimeError;
 use std::ops;
 use std::cmp;
-pub type Result<T> = std::result::Result<T, crate::error::LoxRuntimeError>;
+pub type Result<T> = std::result::Result<T, RuntimeError>;
 
 
 #[derive(Clone, Debug, Display)]
@@ -28,7 +28,7 @@ impl ops::Neg for LoxObject {
         if let Float(value) = self {
             Ok(Float(-value))
         } else {
-            Err(LoxRuntimeError::InvalidOperand)
+            Err(RuntimeError::InvalidOperand)
         }
     }
 }
@@ -53,7 +53,7 @@ impl ops::Add for LoxObject {
         match (self, other) {
             (Float(left), Float(right)) => Ok(Float(left + right)),
             (String(left), String(right)) => Ok(String(format!("{left}{right}").into())),
-            _ => Err(LoxRuntimeError::InvalidOperand),
+            _ => Err(RuntimeError::InvalidOperand),
         }
     }
 }
@@ -65,7 +65,7 @@ impl ops::Sub for LoxObject {
         if let (Float(left), Float(right)) = (self, other) {
             Ok(Float(left - right))
         } else {
-            Err(LoxRuntimeError::InvalidOperand)
+            Err(RuntimeError::InvalidOperand)
         }
     }
 }
@@ -77,7 +77,7 @@ impl ops::Mul for LoxObject {
         if let (Float(left), Float(right)) = (self, other) {
             Ok(Float(left * right))
         } else {
-            Err(LoxRuntimeError::InvalidOperand)
+            Err(RuntimeError::InvalidOperand)
         }
     }
 }
@@ -89,7 +89,7 @@ impl ops::Div for LoxObject {
         if let (Float(left), Float(right)) = (self, other) {
             Ok(Float(left / right))
         } else {
-            Err(LoxRuntimeError::InvalidOperand)
+            Err(RuntimeError::InvalidOperand)
         }
     }
 }

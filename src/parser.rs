@@ -1,10 +1,9 @@
 pub mod ast;
+pub mod error;
 #[allow(dead_code)]
 pub mod ast_printer;
-use super::error::LoxParsingError;
-use super::token::TokenType;
-use super::token::TokenType::*;
-use super::Token;
+pub use error::ParsingError;
+use crate::scanner::{token::TokenType::{*,self}, Token};
 use ast::expression::{Binary, BinaryOperator, Expr, Grouping, Literal, Unary, UnaryOperator};
 use ast::statement::Statement;
 use std::iter::Peekable;
@@ -13,7 +12,7 @@ pub struct Parser {
     iter: Peekable<<Vec<Token> as IntoIterator>::IntoIter>,
 }
 
-type Result<T> = std::result::Result<T, LoxParsingError>;
+type Result<T> = std::result::Result<T, ParsingError>;
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
@@ -38,7 +37,7 @@ impl Parser {
         if self.iter.next_if(|x| x.type_ == SEMICOLON).is_some() {
             Ok(Statement::new_print(value))
         } else {
-            Err(LoxParsingError::NoSemi)
+            Err(ParsingError::NoSemi)
         }
     }
 
@@ -47,7 +46,7 @@ impl Parser {
         if self.iter.next_if(|x| x.type_ == SEMICOLON).is_some() {
             Ok(Statement::new_expression(value))
         } else {
-            Err(LoxParsingError::NoSemi)
+            Err(ParsingError::NoSemi)
         }
     }
 
@@ -90,7 +89,7 @@ impl Parser {
 
     fn primary(&mut self) -> Result<Expr> {
         if self.iter.peek().is_none() {
-            return Err(LoxParsingError::NoExpr);
+            return Err(ParsingError::NoExpr);
         }
 
         match self.iter.next().unwrap().type_ {
@@ -103,7 +102,7 @@ impl Parser {
             } => Ok(Literal::float(num)),
             STRING(str_) => Ok(Literal::string(str_)),
             LEFTPAREN => self.handle_paren(),
-            _ => Err(LoxParsingError::NoExpr),
+            _ => Err(ParsingError::NoExpr),
         }
     }
 }
@@ -129,7 +128,7 @@ impl Parser {
         if self.iter.next_if(|x| x.type_ == RIGHTPAREN).is_some() {
             Ok(Grouping::new(expr))
         } else {
-            Err(LoxParsingError::UntermParen)
+            Err(ParsingError::UntermParen)
         }
     }
 

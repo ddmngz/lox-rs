@@ -1,71 +1,35 @@
-use super::error::Error;
-use super::error::Error::*;
+
+
+use super::error::ScanningError;
 use super::token::{Token, TokenType};
-use byteyarn::ByteYarn;
-use phf::phf_map;
+
 use std::iter::{Iterator, Peekable};
+use byteyarn::ByteYarn;
 use std::str::Chars;
 
-mod helpers;
 
-static KEYWORDS: phf::Map<&'static str, TokenType> = {
-    use TokenType::*;
-    phf_map! {
-        "and" => AND,
-        "class" => CLASS,
-        "else" => ELSE,
-        "false" => FALSE,
-        "for" => FOR,
-        "fun" => FUN,
-        "if" => IF,
-        "nil" => NIL,
-        "or" => OR,
-        "print" => PRINT,
-        "return" => RETURN,
-        "super" => SUPER,
-        "this" => THIS,
-        "true" => TRUE,
-        "var" => VAR,
-        "while" => WHILE,
-    }
-};
+type Result<T> = std::result::Result<T, ScanningError>;
 
-pub fn scan<'a>(source: &'a str) -> Result<Vec<Token>, LoxError> {
-    let mut scanner = Scanner::new(source);
-    let mut err = None;
-    let mut tokens = Vec::with_capacity(source.len());
-    while scanner.can_scan() {
-        match scanner.scan_token() {
-            Ok(Some(token)) => tokens.push(token),
-            Err(e) => err = Some(e),
-            Ok(None) => {}
-        }
-    }
 
-    match err {
-        Some(e) => Err(e),
-        None => Ok(tokens),
-    }
-}
-
-struct Scanner<'a> {
+pub struct Scanner<'a> {
     iter: Peekable<Chars<'a>>,
     line: u32,
 }
 
+
 impl<'a> Scanner<'a> {
-    fn new(source: &'a str) -> Self {
+    pub fn new(source: &'a str) -> Self {
         Self {
             iter: source.chars().peekable(),
             line: 1,
         }
     }
 
-    fn can_scan(&mut self) -> bool {
+    pub fn can_scan(&mut self) -> bool {
         self.peek().is_some()
     }
 
-    fn scan_token(&mut self) -> Result<Option<Token>, LoxError> {
+    pub fn scan_token(&mut self) -> Result<Option<Token>> {
         use TokenType::*;
         let Some(value) = self.next() else {
             return Ok(None);
@@ -106,7 +70,7 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    fn add_operator(&mut self, type_: Operator) -> Result<Option<Token>, LoxError> {
+    fn add_operator(&mut self, type_: Operator) -> Result<Option<Token>> {
         if self.next_if_eq(&'=').is_some() {
             Ok(Some(Token::new(
                 match type_ {
@@ -122,12 +86,12 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    fn handle_string(&mut self) -> Result<Option<Token>, LoxError> {
+    fn handle_string(&mut self) -> Result<Option<Token>> {
         let slice = self.advance_and_get_literal(|x| *x != '"');
 
         if self.iter.peek().is_none() {
-            UntermString.error(self.line);
-            Err(LoxError::UntermString)
+            ScanningError::UntermString.error(self.line);
+            Err(ScanningError::UntermString)
         } else {
             // the closing '"'
             self.iter.next();
@@ -135,16 +99,16 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    fn handle_complex_lexeme(&mut self, val: char) -> Result<Option<Token>, LoxError> {
+    fn handle_complex_lexeme(&mut self, val: char) -> Result<Option<Token>> {
         if val.is_ascii_digit() {
             self.handle_number(val)
         } else if val.is_ascii_alphanumeric() {
             self.handle_identifier(val)
         } else {
-            Err(Syntax.error(self.line))
+            Err(ScanningError::Syntax.error(self.line))
         }
     }
-    fn handle_number(&mut self, val: char) -> Result<Option<Token>, LoxError> {
+    fn handle_number(&mut self, val: char) -> Result<Option<Token>> {
         let mut cur_str = String::from(val);
         cur_str.push_str(&self.advance_and_get_literal(char::is_ascii_digit));
 
@@ -155,18 +119,40 @@ impl<'a> Scanner<'a> {
         Ok(Some(Token::new_number(cur_str, self.line)?))
     }
 
-    fn handle_identifier(&mut self, val: char) -> Result<Option<Token>, LoxError> {
+    fn handle_identifier(&mut self, val: char) -> Result<Option<Token>> {
         let mut cur_str = String::from(val);
         cur_str.push_str(&self.advance_and_get_literal(char::is_ascii_alphanumeric));
         let str_pointer = cur_str.as_str();
         let token;
-        if let Some(tok) = KEYWORDS.get(str_pointer) {
-            token = tok.clone();
+        if let Some(tok) = TokenType::from_keyword(str_pointer) {
+            token = tok;
         } else {
             token = TokenType::IDENTIFIER(ByteYarn::from_string(cur_str));
         }
         Ok(Some(Token::new(token, self.line)))
     }
+
+    pub fn advance_while<F>(&mut self, f: F)
+    where
+        F: Fn(&char) -> bool,
+    {
+        while self.iter.next_if(&f).is_some() {}
+    }
+
+    pub fn advance_and_get_literal<F>(&mut self, f: F) -> String
+    where
+        F: Fn(&char) -> bool,
+    {
+        let mut cur_str = String::new();
+        while let Some(x) = self.iter.next_if(&f) {
+            if x == '\n' {
+                self.line += 1;
+            }
+            cur_str.push(x);
+        }
+        cur_str
+    }
+
 }
 
 impl Iterator for Scanner<'_> {
@@ -207,6 +193,7 @@ impl Into<TokenType> for Operator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::scan;
     use TokenType::*;
 
     static ONE: TokenType = NUMBER {

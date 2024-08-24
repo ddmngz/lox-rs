@@ -1,10 +1,11 @@
 mod interpreter;
+pub mod error;
 
 use interpreter::Interpreter;
 use super::parser::ast::statement::Statement;
-use crate::error::LoxRuntimeError;
+pub use error::RuntimeError;
 
-pub type Result<T> = std::result::Result<T, LoxRuntimeError>;
+pub type Result<T> = std::result::Result<T, RuntimeError>;
 
 pub fn interpret(statements: impl Iterator<Item = Statement>) -> Result<()>{
     let interpreter = Interpreter{};

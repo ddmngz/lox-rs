@@ -1,9 +1,9 @@
-use crate::token::{Token, TokenType};
+use crate::scanner::token::{Token, TokenType};
 use super::lox_object::LoxObject;
 use byteyarn::ByteYarn;
 use strum_macros::Display;
 
-pub type Result<T> = std::result::Result<T, crate::error::LoxRuntimeError>;
+pub type Result<T> = std::result::Result<T, crate::interpreter::RuntimeError>;
 
 pub trait Visitor<T> {
     fn visit_binary(&self, expr: &Binary) -> Result<T>;
@@ -74,6 +74,7 @@ pub enum BinaryOperator {
     #[strum(serialize = "/")]
     SLASH,
 }
+
 
 impl BinaryOperator {
     // trying really hard to prefer duplication to the wrong abstraction here

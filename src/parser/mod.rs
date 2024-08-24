@@ -8,11 +8,6 @@ use super::Token;
 use ast::expression::{Binary, BinaryOperator, Expr, Grouping, Literal, Unary, UnaryOperator};
 use ast::statement::Statement;
 use std::iter::Peekable;
-/*
-pub struct Parser{
-    iter:Peekable<Enumerate<<Vec<Token> as IntoIterator>::IntoIter>>,
-}
-*/
 
 pub struct Parser {
     iter: Peekable<<Vec<Token> as IntoIterator>::IntoIter>,
@@ -41,7 +36,7 @@ impl Parser {
     fn print_statement(&mut self) -> Result<Statement> {
         let value = self.expression()?;
         if self.iter.next_if(|x| x.type_ == SEMICOLON).is_some() {
-            Ok(Statement::Print(value))
+            Ok(Statement::new_print(value))
         } else {
             Err(LoxParsingError::NoSemi)
         }
@@ -50,7 +45,7 @@ impl Parser {
     fn expression_statement(&mut self) -> Result<Statement> {
         let value = self.expression()?;
         if self.iter.next_if(|x| x.type_ == SEMICOLON).is_some() {
-            Ok(Statement::Expression(value))
+            Ok(Statement::new_expression(value))
         } else {
             Err(LoxParsingError::NoSemi)
         }

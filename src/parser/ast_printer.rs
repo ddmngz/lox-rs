@@ -1,4 +1,5 @@
 use super::ast::expression::*;
+use super::ast::lox_object::LoxObject;
 #[derive(Default)]
 pub struct AstPrinter;
 
@@ -35,7 +36,7 @@ impl AstPrinter {
     }
 
     fn visit_literal(&self, expr: &Literal) -> String {
-        use LiteralValue::*;
+        use LoxObject::*;
         match &expr.value {
             Float(f) => f.to_string(),
             r#String(s) => format!("{s}"),

@@ -1,5 +1,5 @@
-use super::error::LoxError;
-use super::error::LoxError::*;
+use super::error::Error;
+use super::error::Error::*;
 use super::token::{Token, TokenType};
 use byteyarn::ByteYarn;
 use phf::phf_map;

@@ -1,4 +1,5 @@
 use crate::token::{Token, TokenType};
+use super::lox_object::LoxObject;
 use byteyarn::ByteYarn;
 use strum_macros::Display;
 
@@ -11,6 +12,8 @@ pub trait Visitor<T> {
     fn visit_unary(&self, expr: &Unary) -> Result<T>;
 }
 
+
+
 #[derive(Clone, Debug)]
 pub enum Expr {
     Binary(Binary),
@@ -18,6 +21,7 @@ pub enum Expr {
     Literal(Literal),
     Unary(Unary),
 }
+
 
 pub fn walk_expr<T>(visitor: &dyn Visitor<T>, e: &Expr) -> Result<T> {
     match e {
@@ -42,20 +46,9 @@ pub struct Grouping {
 
 #[derive(Clone, Debug)]
 pub struct Literal {
-    pub value: LiteralValue,
+    pub value: LoxObject,
 }
 
-#[derive(Clone, Debug, Display)]
-pub enum LiteralValue {
-    #[strum(serialize = "{0}")]
-    Float(f64),
-    #[strum(serialize = "{0}")]
-    String(ByteYarn),
-    #[strum(serialize = "{0}")]
-    Bool(bool),
-    #[strum(serialize = "nil")]
-    Nil,
-}
 
 // TODO deduplicate from token_type
 #[derive(Clone, Display, Debug)]
@@ -136,30 +129,30 @@ impl Grouping {
 impl Literal {
     pub fn float(value: f64) -> Expr {
         Expr::Literal(Self {
-            value: LiteralValue::Float(value),
+            value: LoxObject::Float(value),
         })
     }
 
     pub fn string(value: ByteYarn) -> Expr {
         Expr::Literal(Self {
-            value: LiteralValue::String(value),
+            value: LoxObject::String(value),
         })
     }
 
     pub fn nil() -> Expr {
         Expr::Literal(Self {
-            value: LiteralValue::Nil,
+            value: LoxObject::Nil,
         })
     }
     pub fn r#true() -> Expr {
         Expr::Literal(Self {
-            value: LiteralValue::Bool(true),
+            value: LoxObject::Bool(true),
         })
     }
 
     pub fn r#false() -> Expr {
         Expr::Literal(Self {
-            value: LiteralValue::Bool(false),
+            value: LoxObject::Bool(false),
         })
     }
 }

@@ -14,7 +14,6 @@ impl<'a> Scanner<'a> {
     {
         let mut cur_str = String::new();
         while let Some(x) = self.iter.next_if(&f) {
-            println!("{x} != \"");
             if x == '\n' {
                 self.line += 1;
             }

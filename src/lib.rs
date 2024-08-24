@@ -7,19 +7,18 @@ pub mod parser;
 pub mod scanner;
 pub mod token;
 
-use error::LoxError;
-use interpreter::Interpreter;
+use error::Error;
 use parser::Parser;
 use token::Token;
 
-pub fn run_file(file_name: &str) -> Result<(), LoxError> {
+pub fn run_file(file_name: &str) -> Result<(), Error> {
     let mut file = File::open(file_name).unwrap();
     let mut contents: String = String::new();
     file.read_to_string(&mut contents).unwrap();
     run(contents)
 }
 
-pub fn run_prompt() -> Result<(), LoxError> {
+pub fn run_prompt() -> Result<(), Error> {
     let mut contents = String::new();
     loop {
         print!("> ");
@@ -31,16 +30,13 @@ pub fn run_prompt() -> Result<(), LoxError> {
     }
 }
 
-fn run(message: String) -> Result<(), LoxError> {
+fn run(message: String) -> Result<(), Error> {
     let tokens: Vec<Token> = scanner::scan(&message)?;
     let mut parser = Parser::new(tokens);
-    let expr = parser.parse()?;
-    let interpreter = Interpreter {};
+    let statements = parser.parse()?.into_iter();
 
-    /*
-    match interpreter.interpret(&expr) {
+    match interpreter::interpret(statements) {
         Ok(()) => Ok(()),
-        Err(e) => Err(LoxError::RuntimeError(e)),
-    }*/
-    todo!()
+        Err(e) => Err(Error::RuntimeError(e)),
+    }
 }

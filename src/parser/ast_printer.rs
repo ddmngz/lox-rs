@@ -1,5 +1,5 @@
-use super::ast::expression::*;
-use super::ast::lox_object::LoxObject;
+use crate::syntax_trees::expression::*;
+use crate::syntax_trees::lox_object::LoxObject;
 #[derive(Default)]
 pub struct AstPrinter;
 

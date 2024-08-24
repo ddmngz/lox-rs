@@ -1,7 +1,11 @@
+mod error;
+mod scanned_token;
+pub use error::ScanningError;
 
 
-use super::error::ScanningError;
-use super::token::{Token, TokenType};
+
+pub use crate::token::Token;
+pub use scanned_token::ScannedToken;
 
 use std::iter::{Iterator, Peekable};
 use byteyarn::ByteYarn;
@@ -9,6 +13,24 @@ use std::str::Chars;
 
 
 type Result<T> = std::result::Result<T, ScanningError>;
+
+pub fn scan<'a>(source: &'a str) -> Result<Vec<ScannedToken>> {
+    let mut scanner = Scanner::new(source);
+    let mut err = None;
+    let mut tokens = Vec::with_capacity(source.len());
+    while scanner.can_scan() {
+        match scanner.scan_token() {
+            Ok(Some(token)) => tokens.push(token),
+            Err(e) => err = Some(e),
+            Ok(None) => {}
+        }
+    }
+
+    match err {
+        Some(e) => Err(e.into()),
+        None => Ok(tokens),
+    }
+}
 
 
 pub struct Scanner<'a> {
@@ -29,23 +51,23 @@ impl<'a> Scanner<'a> {
         self.peek().is_some()
     }
 
-    pub fn scan_token(&mut self) -> Result<Option<Token>> {
-        use TokenType::*;
+    pub fn scan_token(&mut self) -> Result<Option<ScannedToken>> {
+        use Token::*;
         let Some(value) = self.next() else {
             return Ok(None);
         };
 
         match value {
-            '(' => Ok(Some(Token::new(LEFTPAREN, self.line))),
-            ')' => Ok(Some(Token::new(RIGHTPAREN, self.line))),
-            '{' => Ok(Some(Token::new(LEFTBRACE, self.line))),
-            '}' => Ok(Some(Token::new(RIGHTBRACE, self.line))),
-            ',' => Ok(Some(Token::new(COMMA, self.line))),
-            '.' => Ok(Some(Token::new(DOT, self.line))),
-            '-' => Ok(Some(Token::new(MINUS, self.line))),
-            '+' => Ok(Some(Token::new(PLUS, self.line))),
-            ';' => Ok(Some(Token::new(SEMICOLON, self.line))),
-            '*' => Ok(Some(Token::new(STAR, self.line))),
+            '(' => Ok(Some(ScannedToken::new(LEFTPAREN, self.line))),
+            ')' => Ok(Some(ScannedToken::new(RIGHTPAREN, self.line))),
+            '{' => Ok(Some(ScannedToken::new(LEFTBRACE, self.line))),
+            '}' => Ok(Some(ScannedToken::new(RIGHTBRACE, self.line))),
+            ',' => Ok(Some(ScannedToken::new(COMMA, self.line))),
+            '.' => Ok(Some(ScannedToken::new(DOT, self.line))),
+            '-' => Ok(Some(ScannedToken::new(MINUS, self.line))),
+            '+' => Ok(Some(ScannedToken::new(PLUS, self.line))),
+            ';' => Ok(Some(ScannedToken::new(SEMICOLON, self.line))),
+            '*' => Ok(Some(ScannedToken::new(STAR, self.line))),
             '!' => self.add_operator(Operator::BANG),
             '=' => self.add_operator(Operator::EQUAL),
             '<' => self.add_operator(Operator::LESS),
@@ -55,7 +77,7 @@ impl<'a> Scanner<'a> {
                     self.advance_while(|x| *x != '\n');
                     Ok(None)
                 } else {
-                    Ok(Some(Token::new(SLASH, self.line)))
+                    Ok(Some(ScannedToken::new(SLASH, self.line)))
                 }
             }
             ' ' => Ok(None),
@@ -70,23 +92,23 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    fn add_operator(&mut self, type_: Operator) -> Result<Option<Token>> {
+    fn add_operator(&mut self, type_: Operator) -> Result<Option<ScannedToken>> {
         if self.next_if_eq(&'=').is_some() {
-            Ok(Some(Token::new(
+            Ok(Some(ScannedToken::new(
                 match type_ {
-                    Operator::BANG => TokenType::BANGEQUAL,
-                    Operator::EQUAL => TokenType::EQUALEQUAL,
-                    Operator::LESS => TokenType::LESSEQUAL,
-                    Operator::GREATER => TokenType::GREATEREQUAL,
+                    Operator::BANG => Token::BANGEQUAL,
+                    Operator::EQUAL => Token::EQUALEQUAL,
+                    Operator::LESS => Token::LESSEQUAL,
+                    Operator::GREATER => Token::GREATEREQUAL,
                 },
                 self.line,
             )))
         } else {
-            Ok(Some(Token::new(type_.into(), self.line)))
+            Ok(Some(ScannedToken::new(type_.into(), self.line)))
         }
     }
 
-    fn handle_string(&mut self) -> Result<Option<Token>> {
+    fn handle_string(&mut self) -> Result<Option<ScannedToken>> {
         let slice = self.advance_and_get_literal(|x| *x != '"');
 
         if self.iter.peek().is_none() {
@@ -95,11 +117,11 @@ impl<'a> Scanner<'a> {
         } else {
             // the closing '"'
             self.iter.next();
-            Ok(Some(Token::new_string(slice, self.line)))
+            Ok(Some(ScannedToken::new_string(slice, self.line)))
         }
     }
 
-    fn handle_complex_lexeme(&mut self, val: char) -> Result<Option<Token>> {
+    fn handle_complex_lexeme(&mut self, val: char) -> Result<Option<ScannedToken>> {
         if val.is_ascii_digit() {
             self.handle_number(val)
         } else if val.is_ascii_alphanumeric() {
@@ -108,7 +130,7 @@ impl<'a> Scanner<'a> {
             Err(ScanningError::Syntax.error(self.line))
         }
     }
-    fn handle_number(&mut self, val: char) -> Result<Option<Token>> {
+    fn handle_number(&mut self, val: char) -> Result<Option<ScannedToken>> {
         let mut cur_str = String::from(val);
         cur_str.push_str(&self.advance_and_get_literal(char::is_ascii_digit));
 
@@ -116,20 +138,20 @@ impl<'a> Scanner<'a> {
             cur_str.push('.');
             cur_str.push_str(&self.advance_and_get_literal(char::is_ascii_digit));
         }
-        Ok(Some(Token::new_number(cur_str, self.line)?))
+        Ok(Some(ScannedToken::new_number(cur_str, self.line)?))
     }
 
-    fn handle_identifier(&mut self, val: char) -> Result<Option<Token>> {
+    fn handle_identifier(&mut self, val: char) -> Result<Option<ScannedToken>> {
         let mut cur_str = String::from(val);
         cur_str.push_str(&self.advance_and_get_literal(char::is_ascii_alphanumeric));
         let str_pointer = cur_str.as_str();
         let token;
-        if let Some(tok) = TokenType::from_keyword(str_pointer) {
+        if let Some(tok) = Token::from_keyword(str_pointer) {
             token = tok;
         } else {
-            token = TokenType::IDENTIFIER(ByteYarn::from_string(cur_str));
+            token = Token::IDENTIFIER(ByteYarn::from_string(cur_str));
         }
-        Ok(Some(Token::new(token, self.line)))
+        Ok(Some(ScannedToken::new(token, self.line)))
     }
 
     pub fn advance_while<F>(&mut self, f: F)
@@ -179,13 +201,13 @@ enum Operator {
     GREATER,
 }
 
-impl Into<TokenType> for Operator {
-    fn into(self) -> TokenType {
+impl Into<Token> for Operator {
+    fn into(self) -> Token {
         match self {
-            Self::BANG => TokenType::BANG,
-            Self::EQUAL => TokenType::EQUAL,
-            Self::LESS => TokenType::LESS,
-            Self::GREATER => TokenType::GREATER,
+            Self::BANG => Token::BANG,
+            Self::EQUAL => Token::EQUAL,
+            Self::LESS => Token::LESS,
+            Self::GREATER => Token::GREATER,
         }
     }
 }
@@ -193,10 +215,9 @@ impl Into<TokenType> for Operator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::super::scan;
-    use TokenType::*;
+    use Token::*;
 
-    static ONE: TokenType = NUMBER {
+    static ONE: Token = NUMBER {
         lexeme: ByteYarn::from_static("1".as_bytes()),
         value: 1.0,
     };
@@ -229,7 +250,7 @@ mod tests {
         )
     }
 
-    fn compare_scan(string: &str, goal: Vec<TokenType>) {
+    fn compare_scan(string: &str, goal: Vec<Token>) {
         let scanned_tokens: Vec<_> = scan(string).unwrap().into_iter().map(|x| x.type_).collect();
         println!("{:?}", scanned_tokens);
         let scanned_tokens = scan(string).unwrap().into_iter().map(|x| x.type_);

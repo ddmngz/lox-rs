@@ -5,7 +5,7 @@ use phf::phf_map;
 /// Every Possible Type of Token
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, Default, PartialEq)]
-pub enum TokenType {
+pub enum Token{
     LEFTPAREN,
     RIGHTPAREN,
     LEFTBRACE,
@@ -56,7 +56,7 @@ pub enum TokenType {
     EOF,
 }
 
-impl fmt::Display for TokenType {
+impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::STRING(yarn) => write!(f, "STRING(\"{}\")", yarn.to_string()),
@@ -70,13 +70,13 @@ impl fmt::Display for TokenType {
     }
 }
 
-impl TokenType {
+impl Token {
     pub fn from_keyword(keyword: &str) -> Option<Self>{
         KEYWORDS.get(keyword).cloned()
     }
 }
-static KEYWORDS: phf::Map<&'static str, TokenType> = {
-    use TokenType::*;
+static KEYWORDS: phf::Map<&'static str, Token> = {
+    use Token::*;
     phf_map! {
         "and" => AND,
         "class" => CLASS,

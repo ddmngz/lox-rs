@@ -1,4 +1,4 @@
-use crate::scanner::token::{Token, TokenType};
+use crate::scanner::Token;
 use super::lox_object::LoxObject;
 use byteyarn::ByteYarn;
 use strum_macros::Display;
@@ -79,17 +79,17 @@ pub enum BinaryOperator {
 impl BinaryOperator {
     // trying really hard to prefer duplication to the wrong abstraction here
     pub fn from_token(token: Token) -> Option<Self> {
-        match token.type_ {
-            TokenType::EQUALEQUAL => Some(Self::EQUALEQUAL),
-            TokenType::BANGEQUAL => Some(Self::BANGEQUAL),
-            TokenType::GREATER => Some(Self::GREATER),
-            TokenType::GREATEREQUAL => Some(Self::GREATEREQUAL),
-            TokenType::LESS => Some(Self::LESS),
-            TokenType::LESSEQUAL => Some(Self::LESSEQUAL),
-            TokenType::PLUS => Some(Self::PLUS),
-            TokenType::MINUS => Some(Self::MINUS),
-            TokenType::STAR => Some(Self::STAR),
-            TokenType::SLASH => Some(Self::SLASH),
+        match token{
+            Token::EQUALEQUAL => Some(Self::EQUALEQUAL),
+            Token::BANGEQUAL => Some(Self::BANGEQUAL),
+            Token::GREATER => Some(Self::GREATER),
+            Token::GREATEREQUAL => Some(Self::GREATEREQUAL),
+            Token::LESS => Some(Self::LESS),
+            Token::LESSEQUAL => Some(Self::LESSEQUAL),
+            Token::PLUS => Some(Self::PLUS),
+            Token::MINUS => Some(Self::MINUS),
+            Token::STAR => Some(Self::STAR),
+            Token::SLASH => Some(Self::SLASH),
             _ => None,
         }
     }

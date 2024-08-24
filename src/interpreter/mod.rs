@@ -1,8 +1,18 @@
-use crate::parser::ast::{expression::{self, *},statement::{self, Statement}, lox_object::LoxObject};
-use super::error::RuntimeError;
-use super::Result;
-pub struct Interpreter {}
+mod error;
+pub use error::RuntimeError;
+use crate::syntax_trees::{expression::{self, *},statement::{self, Statement}, lox_object::LoxObject};
 
+pub struct Interpreter {}
+pub type Result<T> = std::result::Result<T, RuntimeError>;
+
+pub fn interpret(statements: impl Iterator<Item = Statement>) -> Result<()>{
+    let interpreter = Interpreter{};
+    for statement_ in statements{
+        interpreter.execute(statement_)?;
+    }
+
+    Ok(())
+}
 
 
 impl Interpreter {

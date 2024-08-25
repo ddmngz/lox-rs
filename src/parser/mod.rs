@@ -103,7 +103,10 @@ impl Parser {
             return Err(ParsingError::NoExpr);
         }
 
-        match self.iter.next().unwrap().type_ {
+        let Some(ScannedToken{type_:token, ..}) = self.iter.next_if(|x| is_terminal(&x.type_)) else{
+            return Err(ParsingError::NoExpr)
+        };
+        match token{
             Token::FALSE => Ok(Literal::r#false()),
             Token::TRUE => Ok(Literal::r#true()),
             Token::NIL => Ok(Literal::r#nil()),
@@ -111,11 +114,16 @@ impl Parser {
                 lexeme: _,
                 value: num,
             } => Ok(Literal::float(num)),
-            Token::STRING(str_) => Ok(Literal::string(str_)),
+            Token::STRING(str_) => Ok(Literal::string(str_.clone())),
             Token::LEFTPAREN => self.handle_paren(),
             _ => Err(ParsingError::NoExpr),
         }
     }
+}
+
+fn is_terminal(token:&Token) -> bool{
+    matches!(token, Token::FALSE|Token::TRUE|Token::NIL|Token::NUMBER{lexeme:_, value:_}|Token::STRING(_)|Token::LEFTPAREN)
+
 }
 
 impl Parser {

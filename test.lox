@@ -1,16 +1,3 @@
-print "hello world"
-
-(){}{}()
-
-3 + 5
-
-// some comments that are ignored
-
-2 + 9.15
-
-var hewwo
-
-
-"a multiline
-string (15)"
-
+print "one";
+print true;
+print 2+1;

@@ -1,4 +1,5 @@
 mod error;
+use std::io::Write;
 pub use error::RuntimeError;
 use crate::syntax_trees::{expression::{self, *},statement::{self, Statement}, lox_object::LoxObject};
 
@@ -6,25 +7,12 @@ pub struct Interpreter {}
 pub type Result<T> = std::result::Result<T, RuntimeError>;
 
 pub fn interpret(statements: impl Iterator<Item = Statement>) -> Result<()>{
-    let interpreter = Interpreter{};
+    let mut interpreter = Interpreter{};
     for statement_ in statements{
         interpreter.execute(statement_)?;
     }
 
     Ok(())
-}
-
-
-impl Interpreter {
-    fn evaluate(&self, expr: &Expr) -> Result<LoxObject> {
-        walk_expr(self, expr)
-    }
-    
-    pub fn execute(&self, statement: Statement) -> Result<()>{
-        walk_expr(self, statement.as_expr())?;
-        Ok(())
-    }
-
 }
 
 impl statement::Visitor<()> for Interpreter {
@@ -36,9 +24,29 @@ impl statement::Visitor<()> for Interpreter {
     fn visit_print(&mut self, statement: statement::Print) -> Result<()> {
         let value = self.evaluate(statement.as_ref())?;
         println!("{value}");
+        let _ = std::io::stdout().flush();
         Ok(())
     }
 }
+
+
+
+impl Interpreter {
+    fn evaluate(&self, expr: &Expr) -> Result<LoxObject> {
+        walk_expr(self, expr)
+    }
+    
+    pub fn execute(&mut self, statement: Statement) -> Result<()>{
+        use statement::Visitor;
+        match statement{
+            Statement::Expression(expr) => self.visit_expression(expr),
+            Statement::Print(expr) => self.visit_print(expr),
+        }?;
+        Ok(())
+    }
+
+}
+
 
 impl expression::Visitor<LoxObject> for Interpreter {
     fn visit_binary(&self, expr: &Binary) -> Result<LoxObject> {

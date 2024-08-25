@@ -26,7 +26,10 @@ pub fn run_prompt() -> Result<(), Error> {
         if stdin().read_line(&mut contents).is_ok_and(|x| x == 0) {
             return Ok(());
         }
-        run(&contents)?;
+        if let Err(e) = run(&contents){
+            println!("{}",e);
+            stdout().flush()?;
+        }
         contents.clear();
     }
 }

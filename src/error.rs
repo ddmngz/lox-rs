@@ -10,10 +10,10 @@ pub enum Error {
     #[error("IO Error: {0}")]
     IO(#[from] std::io::Error),
 
-    #[error("IO Error: {0}")]
+    #[error("Scanning Error: {0}")]
     ScanningError(#[from] ScanningError),
 
-    #[error("IO Error: {0}")]
+    #[error("Parsing Error: {0}")]
     ParsingError(#[from] ParsingError),
 
     #[error("Runtime Error: {0}")]

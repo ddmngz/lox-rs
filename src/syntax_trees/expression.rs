@@ -1,7 +1,7 @@
 use crate::scanner::Token;
 use super::lox_object::LoxObject;
-use byteyarn::ByteYarn;
 use strum_macros::Display;
+use beef::lean::Cow;
 
 pub type Result<T> = std::result::Result<T, crate::interpreter::RuntimeError>;
 
@@ -14,11 +14,12 @@ pub trait Visitor<T> {
 
 
 
+
 #[derive(Clone, Debug)]
-pub enum Expr {
+pub enum Expr<'source> {
     Binary(Binary),
     Grouping(Grouping),
-    Literal(Literal),
+    Literal(Literal<'source>),
     Unary(Unary),
 }
 
@@ -45,8 +46,8 @@ pub struct Grouping {
 }
 
 #[derive(Clone, Debug)]
-pub struct Literal {
-    pub value: LoxObject,
+pub struct Literal<'source> {
+    pub value: LoxObject<'source>,
 }
 
 
@@ -127,18 +128,22 @@ impl Grouping {
     }
 }
 
-impl Literal {
+impl <'source> Literal<'source>{
+    pub fn string(value: &'source str) -> Expr {
+        Expr::Literal(Self {
+            value: LoxObject::String(Cow::borrowed(value)),
+        })
+    }
+
+}
+
+impl Literal<'_> {
     pub fn float(value: f64) -> Expr {
         Expr::Literal(Self {
             value: LoxObject::Float(value),
         })
     }
 
-    pub fn string(value: ByteYarn) -> Expr {
-        Expr::Literal(Self {
-            value: LoxObject::String(value),
-        })
-    }
 
     pub fn nil() -> Expr {
         Expr::Literal(Self {

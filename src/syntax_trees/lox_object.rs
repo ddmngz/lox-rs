@@ -2,16 +2,15 @@ use strum_macros::Display;
 use crate::interpreter::RuntimeError;
 use std::ops;
 use std::cmp;
-use beef::lean::Cow;
 pub type Result<T> = std::result::Result<T, RuntimeError>;
-
+use beef::lean::Cow;
 
 #[derive(Clone, Debug, Display)]
-pub enum LoxObject<'source>{
+pub enum LoxObject<'source> {
     #[strum(serialize = "{0}")]
     Float(f64),
     #[strum(serialize = "{0}")]
-    String(Cow<'source, str>),
+    String(Cow<'source,str>),
     #[strum(serialize = "{0}")]
     Bool(bool),
     #[strum(serialize = "nil")]
@@ -70,7 +69,7 @@ impl ops::Sub for LoxObject<'_> {
     }
 }
 
-impl ops::Mul for LoxObject<'_> {
+impl ops::Mul for LoxObject<'_>{
     type Output = Result<Self>;
     fn mul(self, other: Self) -> Self::Output {
         use LoxObject::Float;
@@ -107,7 +106,7 @@ impl cmp::PartialEq for LoxObject<'_> {
     }
 }
 
-impl cmp::PartialOrd for LoxObject {
+impl cmp::PartialOrd for LoxObject<'_>{
     fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
         use LoxObject::Float;
         if let (Float(left), Float(right)) = (self, other) {

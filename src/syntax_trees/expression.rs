@@ -5,49 +5,61 @@ use beef::lean::Cow;
 
 pub type Result<T> = std::result::Result<T, crate::interpreter::RuntimeError>;
 
-pub trait Visitor<T> {
-    fn visit_binary(&self, expr: &Binary) -> Result<T>;
-    fn visit_grouping(&self, expr: &Grouping) -> Result<T>;
-    fn visit_literal(&self, expr: &Literal) -> Result<T>;
-    fn visit_unary(&self, expr: &Unary) -> Result<T>;
+pub trait Expr<'source>{
+    fn evaluate(&self) -> Result<LoxObject<'source>>;
+    fn print(&self) -> Result<String>;
 }
-
 
 
 
 #[derive(Clone, Debug)]
-pub enum Expr<'source> {
-    Binary(Binary),
-    Grouping(Grouping),
-    Literal(Literal<'source>),
-    Unary(Unary),
-}
-
-
-pub fn walk_expr<T>(visitor: &dyn Visitor<T>, e: &Expr) -> Result<T> {
-    match e {
-        Expr::Binary(binary) => visitor.visit_binary(binary),
-        Expr::Grouping(grouping) => visitor.visit_grouping(grouping),
-        Expr::Literal(literal) => visitor.visit_literal(literal),
-        Expr::Unary(unary) => visitor.visit_unary(unary),
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct Binary {
-    pub left: Box<Expr>,
+pub struct Binary<'source> {
+    pub left: Box<dyn Expr<'source>>,
     pub operator: BinaryOperator,
-    pub right: Box<Expr>,
+    pub right: Box<dyn Expr<'source>>,
 }
 
 #[derive(Clone, Debug)]
-pub struct Grouping {
-    pub expression: Box<Expr>,
+pub struct Grouping<'source> {
+    pub expression: Box<dyn Expr<'source>>,
+}
+
+#[derive(Clone, Debug)]
+pub struct Unary<'source> {
+    pub operator: UnaryOperator,
+    pub right: Box<dyn Expr<'source>>,
 }
 
 #[derive(Clone, Debug)]
 pub struct Literal<'source> {
     pub value: LoxObject<'source>,
+}
+
+impl<'source> Expr<'source> for Literal<'source>{
+    fn evaluate(&self) -> Result<LoxObject<'source>>{
+        Ok(self.value)
+    }
+
+    fn print(&self) -> Result<String>{
+        Ok(format!("{}",self.value))
+    }
+}
+
+impl<'source> Expr<'source> for Unary<'source>{
+    fn evaluate(&self) -> Result<LoxObject<'source>>{
+        use UnaryOperator::{BANG,MINUS};
+        let right = self.right.evaluate();
+        match self.operator{
+            BANG => !right,
+            MINUS => -right,
+        }
+        Ok(self.value)
+    }
+
+    fn print(&self) -> Result<String>{
+        let right = self.right.print();
+        Ok(format!("{}{}",self.operator,right))
+    }
 }
 
 
@@ -104,70 +116,68 @@ pub enum UnaryOperator {
     MINUS,
 }
 
-#[derive(Clone, Debug)]
-pub struct Unary {
-    pub operator: UnaryOperator,
-    pub right: Box<Expr>,
-}
 
-impl Binary {
-    pub fn new(left: Expr, operator: BinaryOperator, right: Expr) -> Expr {
-        Expr::Binary(Self {
+
+impl Binary<'_> {
+    pub fn new(left: dyn Expr, operator: BinaryOperator, right: dyn Expr) -> Self {
+        Self {
             left: Box::new(left),
             operator,
             right: Box::new(right),
-        })
+        }
     }
 }
 
-impl Grouping {
-    pub fn new(expression: Expr) -> Expr {
-        Expr::Grouping(Self {
+impl Grouping<'_> {
+    pub fn new(expression: dyn Expr) -> Self {
+        Self {
             expression: Box::new(expression),
-        })
+        }
     }
 }
 
-impl <'source> Literal<'source>{
-    pub fn string(value: &'source str) -> Expr {
-        Expr::Literal(Self {
+impl<'source> Literal<'source>{
+    pub fn string(value: &'source str) -> Self {
+        Self {
             value: LoxObject::String(Cow::borrowed(value)),
-        })
+        }
     }
 
 }
+
 
 impl Literal<'_> {
-    pub fn float(value: f64) -> Expr {
+    pub fn float(value: f64) -> Self {
         Expr::Literal(Self {
             value: LoxObject::Float(value),
         })
     }
 
 
-    pub fn nil() -> Expr {
-        Expr::Literal(Self {
+    pub fn nil() -> Self{
+        Self {
             value: LoxObject::Nil,
-        })
-    }
-    pub fn r#true() -> Expr {
-        Expr::Literal(Self {
-            value: LoxObject::Bool(true),
-        })
+        }
     }
 
-    pub fn r#false() -> Expr {
-        Expr::Literal(Self {
+    pub fn r#true() -> Self {
+        Self {
+            value: LoxObject::Bool(true),
+        }
+    }
+
+    pub fn r#false() -> Self {
+        Self(Self {
             value: LoxObject::Bool(false),
         })
     }
 }
 
-impl Unary {
-    pub fn new(operator: UnaryOperator, right: Expr) -> Expr {
-        Expr::Unary(Self {
+impl Unary<'_> {
+    pub fn new(operator: UnaryOperator, right: dyn Expr) -> Self {
+        Self {
             operator,
             right: Box::new(right),
-        })
+        }
     }
 }

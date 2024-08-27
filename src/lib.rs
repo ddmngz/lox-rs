@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::io::{stdin,stdout, Read, Write};
+use ascii::IntoAsciiString;
 
 pub mod error;
 pub mod interpreter;
@@ -34,8 +35,11 @@ pub fn run_prompt() -> Result<(), Error> {
     }
 }
 
-fn run(message: &str) -> Result<(), Error> {
-    let tokens = scanner::scan(&message)?;
+fn run(code: &str) -> Result<(), Error> {
+    let Ok(code) = code.into_ascii_string()else{
+        return Err(Error::NotAscii)
+    };
+    let tokens = scanner::scan(&code)?;
     let mut parser = Parser::new(tokens);
     let statements = parser.parse()?.into_iter();
 

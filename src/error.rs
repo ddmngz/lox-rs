@@ -1,5 +1,5 @@
 use thiserror::Error;
-use crate::scanner::ScanningError;
+pub use crate::scanner::ScanningError;
 use crate::parser::ParsingError;
 use crate::interpreter::RuntimeError;
 
@@ -9,6 +9,9 @@ pub enum Error {
     Usage,
     #[error("IO Error: {0}")]
     IO(#[from] std::io::Error),
+
+    #[error("Sorry, I only except Ascii (my bad, its a skill issue)")]
+    NotAscii,
 
     #[error("Scanning Error: {0}")]
     ScanningError(#[from] ScanningError),

@@ -1,33 +1,33 @@
-
-use byteyarn::ByteYarn;
 use std::fmt;
 use std::num::ParseFloatError;
 pub use crate::token::Token;
+use ascii::AsciiStr;
 /// The Token struct and funcitonality
 #[derive(Default, Clone, Debug)]
-pub struct ScannedToken {
+pub struct ScannedToken<'source> {
     /// What the token this is, also stores value
-    pub type_: Token,
+    pub type_: Token<'source>,
     /// Line number of the lexeme
     line: u32,
 }
 
-impl ScannedToken {
-    pub fn new(type_: Token, line: u32) -> Self {
+impl<'source> ScannedToken<'source> {
+    pub fn new(type_: Token<'source>, line: u32) -> Self {
         Self { type_, line }
     }
 
-    pub fn new_string(lexeme: String, line: u32) -> Self {
+    // this would be so easy with nom bytes
+    pub fn new_string(lexeme: &'source AsciiStr, line: u32) -> Self {
         Self {
-            type_: Token::STRING(ByteYarn::from_string(lexeme)),
+            type_: Token::STRING(lexeme),
             line,
         }
     }
 
-    pub fn new_number(lexeme: String, line: u32) -> Result<Self, ParseFloatError> {
-        let value: f64 = lexeme.parse()?;
+    pub fn new_number(lexeme: &'source AsciiStr, line: u32) -> Result<Self, ParseFloatError> {
+        let value: f64 = lexeme.as_str().parse()?;
         let type_ = Token::NUMBER {
-            lexeme: ByteYarn::from_string(lexeme),
+            lexeme,
             value,
         };
         Ok(Self { type_, line })
@@ -41,7 +41,7 @@ impl ScannedToken {
     }
 }
 
-impl fmt::Display for ScannedToken {
+impl fmt::Display for ScannedToken<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}: {}", self.line, self.type_)
     }

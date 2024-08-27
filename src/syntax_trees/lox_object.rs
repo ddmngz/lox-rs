@@ -1,17 +1,17 @@
 use strum_macros::Display;
-use byteyarn::ByteYarn;
 use crate::interpreter::RuntimeError;
 use std::ops;
 use std::cmp;
+use beef::lean::Cow;
 pub type Result<T> = std::result::Result<T, RuntimeError>;
 
 
 #[derive(Clone, Debug, Display)]
-pub enum LoxObject{
+pub enum LoxObject<'source>{
     #[strum(serialize = "{0}")]
     Float(f64),
     #[strum(serialize = "{0}")]
-    String(ByteYarn),
+    String(Cow<'source, str>),
     #[strum(serialize = "{0}")]
     Bool(bool),
     #[strum(serialize = "nil")]
@@ -21,8 +21,8 @@ pub enum LoxObject{
 // logic for evaluating is handled through trait implementations, returning Error for invalid type
 // conversions
 
-impl ops::Neg for LoxObject {
-    type Output = Result<LoxObject>;
+impl ops::Neg for LoxObject<'_> {
+    type Output = Result<Self>;
     fn neg(self) -> Self::Output {
         use LoxObject::Float;
         if let Float(value) = self {
@@ -33,8 +33,8 @@ impl ops::Neg for LoxObject {
     }
 }
 
-impl ops::Not for LoxObject {
-    type Output = Result<LoxObject>;
+impl ops::Not for LoxObject<'_> {
+    type Output = Result<Self>;
     // Lox semantics are that Nil is false, so !Nil = true for some reason even though that's kind
     // of evil
     fn not(self) -> Self::Output {
@@ -46,8 +46,8 @@ impl ops::Not for LoxObject {
     }
 }
 
-impl ops::Add for LoxObject {
-    type Output = Result<LoxObject>;
+impl<'source> ops::Add for LoxObject<'source> {
+    type Output = Result<Self>;
     fn add(self, other: Self) -> Self::Output {
         use LoxObject::*;
         match (self, other) {
@@ -58,8 +58,8 @@ impl ops::Add for LoxObject {
     }
 }
 
-impl ops::Sub for LoxObject {
-    type Output = Result<LoxObject>;
+impl ops::Sub for LoxObject<'_> {
+    type Output = Result<Self>;
     fn sub(self, other: Self) -> Self::Output {
         use LoxObject::Float;
         if let (Float(left), Float(right)) = (self, other) {
@@ -70,8 +70,8 @@ impl ops::Sub for LoxObject {
     }
 }
 
-impl ops::Mul for LoxObject {
-    type Output = Result<LoxObject>;
+impl ops::Mul for LoxObject<'_> {
+    type Output = Result<Self>;
     fn mul(self, other: Self) -> Self::Output {
         use LoxObject::Float;
         if let (Float(left), Float(right)) = (self, other) {
@@ -82,8 +82,8 @@ impl ops::Mul for LoxObject {
     }
 }
 
-impl ops::Div for LoxObject {
-    type Output = Result<LoxObject>;
+impl ops::Div for LoxObject<'_> {
+    type Output = Result<Self>;
     fn div(self, other: Self) -> Self::Output {
         use LoxObject::Float;
         if let (Float(left), Float(right)) = (self, other) {
@@ -94,7 +94,7 @@ impl ops::Div for LoxObject {
     }
 }
 
-impl cmp::PartialEq for LoxObject {
+impl cmp::PartialEq for LoxObject<'_> {
     fn eq(&self, other: &Self) -> bool {
         use LoxObject::{Bool, Float, Nil, String};
         match (self, other) {

@@ -11,19 +11,19 @@ use crate::syntax_trees::statement::Statement;
 use crate::token::Token;
 use std::iter::Peekable;
 
-pub struct Parser {
-    iter: Peekable<<Vec<ScannedToken> as IntoIterator>::IntoIter>,
+pub struct Parser<'s> {
+    iter: Peekable<<Vec<ScannedToken<'s>> as IntoIterator>::IntoIter>,
 }
 
 type Result<T> = std::result::Result<T, ParsingError>;
 
-impl Parser {
+impl<'s> Parser<'s> {
     pub fn new(tokens: Vec<ScannedToken>) -> Self {
         let iter = tokens.into_iter().peekable();
         Self { iter }
     }
 
-    pub fn parse(&mut self) -> Result<Vec<Statement>> {
+    pub fn parse(&mut self) -> Result<Vec<&dyn Statement<'s>>> {
         let mut statements = Vec::new();
         while let Some(token) = self.iter.next() {
             statements.push(match token.type_ {
@@ -35,7 +35,7 @@ impl Parser {
         Ok(statements)
     }
 
-    fn print_statement(&mut self) -> Result<Statement> {
+    fn print_statement(&mut self) -> Result<&dyn Statement> {
         let value = self.expression()?;
         if self.iter.next_if(|x| x.type_ == Token::SEMICOLON).is_some() {
             Ok(Statement::new_print(value))
@@ -44,7 +44,7 @@ impl Parser {
         }
     }
 
-    fn expression_statement(&mut self) -> Result<Statement> {
+    fn expression_statement(&mut self) -> Result<&dyn Statement> {
         let value = self.expression()?;
         if self.iter.next_if(|x| x.type_ == Token::SEMICOLON).is_some() {
             Ok(Statement::new_expression(value))
@@ -53,16 +53,16 @@ impl Parser {
         }
     }
 
-    fn expression(&mut self) -> Result<Expr> {
+    fn expression(&mut self) -> Result<&dyn Expr> {
         self.equality()
     }
 
-    fn equality(&mut self) -> Result<Expr> {
+    fn equality(&mut self) -> Result<&dyn Expr> {
         let mut types = [Token::BANGEQUAL, Token::EQUALEQUAL];
         self.recursive_descend(Self::comparison, &mut types)
     }
 
-    fn comparison(&mut self) -> Result<Expr> {
+    fn comparison(&mut self) -> Result<&dyn Expr> {
         let mut types = [
             Token::GREATER,
             Token::GREATEREQUAL,
@@ -72,17 +72,17 @@ impl Parser {
         self.recursive_descend(Self::term, &mut types)
     }
 
-    fn term(&mut self) -> Result<Expr> {
+    fn term(&mut self) -> Result<&dyn Expr> {
         let mut types = [Token::MINUS, Token::PLUS];
         self.recursive_descend(Self::factor, &mut types)
     }
 
-    fn factor(&mut self) -> Result<Expr> {
+    fn factor(&mut self) -> Result<&dyn Expr> {
         let mut types = [Token::SLASH, Token::STAR];
         self.recursive_descend(Self::unary, &mut types)
     }
 
-    fn unary(&mut self) -> Result<Expr> {
+    fn unary(&mut self) -> Result<&dyn Expr> {
         if let Some(token) = self
             .iter
             .next_if(|x| [Token::BANG, Token::MINUS].contains(&x.type_))
@@ -93,12 +93,12 @@ impl Parser {
                 UnaryOperator::MINUS
             };
             let right = self.unary()?;
-            return Ok(Unary::new(operator, right));
+            return Ok(&Unary::new(operator, right));
         }
         self.primary()
     }
 
-    fn primary(&mut self) -> Result<Expr> {
+    fn primary(&mut self) -> Result<Literal> {
         if self.iter.peek().is_none() {
             return Err(ParsingError::NoExpr);
         }
@@ -126,12 +126,12 @@ fn is_terminal(token:&Token) -> bool{
 
 }
 
-impl Parser {
+impl<'s> Parser<'s> {
     fn recursive_descend(
         &mut self,
-        f: fn(&mut Self) -> Result<Expr>,
+        f: fn(&mut Self) -> Result<&dyn Expr>,
         types: &mut [Token],
-    ) -> Result<Expr> {
+    ) -> Result<&dyn Expr> {
         let mut expr: Expr = f(self)?;
         // TODO: see if there's a way we can combine the while let to remove the unwrap
         while let Some(token) = self.iter.next_if(|x| types.contains(&x.type_)) {
@@ -139,10 +139,10 @@ impl Parser {
             let right = f(self)?;
             expr = Binary::new(expr, operator, right);
         }
-        Ok(expr)
+        Ok(&expr)
     }
 
-    fn handle_paren(&mut self) -> Result<Expr> {
+    fn handle_paren(&mut self) -> Result<&dyn Expr> {
         let expr = self.expression()?;
         if self
             .iter

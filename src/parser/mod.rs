@@ -1,5 +1,4 @@
 #[allow(dead_code)]
-pub mod ast_printer;
 pub mod error;
 pub use error::ParsingError;
 //use crate::scanner::{TokenType::{*,self}, Token};
@@ -11,19 +10,19 @@ use crate::syntax_trees::statement::Statement;
 use crate::token::Token;
 use std::iter::Peekable;
 
-pub struct Parser<'s> {
-    iter: Peekable<<Vec<ScannedToken<'s>> as IntoIterator>::IntoIter>,
+pub struct Parser {
+    iter: Peekable<<Vec<ScannedToken> as IntoIterator>::IntoIter>,
 }
 
 type Result<T> = std::result::Result<T, ParsingError>;
 
-impl<'s> Parser<'s> {
+impl Parser {
     pub fn new(tokens: Vec<ScannedToken>) -> Self {
         let iter = tokens.into_iter().peekable();
         Self { iter }
     }
 
-    pub fn parse(&mut self) -> Result<Vec<&dyn Statement<'s>>> {
+    pub fn parse(&mut self) -> Result<Vec<&dyn Statement>> {
         let mut statements = Vec::new();
         while let Some(token) = self.iter.next() {
             statements.push(match token.type_ {
@@ -114,7 +113,7 @@ impl<'s> Parser<'s> {
                 lexeme: _,
                 value: num,
             } => Ok(Literal::float(num)),
-            Token::STRING(str_) => Ok(Literal::string(str_.clone())),
+            Token::STRING(str_) => Ok(Literal::string(str_.into())),
             Token::LEFTPAREN => self.handle_paren(),
             _ => Err(ParsingError::NoExpr),
         }
@@ -126,7 +125,7 @@ fn is_terminal(token:&Token) -> bool{
 
 }
 
-impl<'s> Parser<'s> {
+impl Parser {
     fn recursive_descend(
         &mut self,
         f: fn(&mut Self) -> Result<&dyn Expr>,

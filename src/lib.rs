@@ -1,6 +1,5 @@
 use std::fs::File;
 use std::io::{stdin,stdout, Read, Write};
-use ascii::IntoAsciiString;
 
 pub mod error;
 pub mod interpreter;
@@ -36,7 +35,7 @@ pub fn run_prompt() -> Result<(), Error> {
 }
 
 fn run(code: &str) -> Result<(), Error> {
-    let Ok(code) = code.into_ascii_string()else{
+    let Ok(code) = validate(code)else{
         return Err(Error::NotAscii)
     };
     let tokens = scanner::scan(&code)?;
@@ -47,4 +46,9 @@ fn run(code: &str) -> Result<(), Error> {
         Ok(()) => Ok(()),
         Err(e) => Err(Error::RuntimeError(e)),
     }
+}
+
+// TODO
+fn validate(code:&str) -> bool{
+    true
 }

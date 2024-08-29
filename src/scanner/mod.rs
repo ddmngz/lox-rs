@@ -5,7 +5,6 @@ pub use error::ScanningError;
 pub use crate::token::Token;
 pub use scanned_token::ScannedToken;
 
-use crate::token::FromCharHint;
 use crate::token::Operator;
 use crate::token::SmartString;
 
@@ -18,12 +17,13 @@ pub enum ScanResult {
     Token(Token),
 }
 
-pub fn scan<'source>(mut source: String) -> Result<Vec<ScannedToken<'source>>> {
+pub fn scan(mut source: Box<str>) -> Result<Vec<ScannedToken>> {
     let mut tokens = Vec::with_capacity(source.len());
     let mut err = None;
     let mut line = 1;
-    while let Some(res) = split_from_string(&mut source) {
-        match res {
+    let mut cur = 0;
+    while let Some(res) = source.get(cur) {
+        match Token::try_from(res) {
             Ok(ScanResult::Newline) => line = line + 1,
             Ok(ScanResult::Token(token)) => {
                 tokens.push(ScannedToken::new(token, line));
@@ -37,26 +37,8 @@ pub fn scan<'source>(mut source: String) -> Result<Vec<ScannedToken<'source>>> {
     }
 }
 
-/*
-struct Scanner{
-    buf: *mut u8,
-    len: usize,
-}
 
-impl Scanner{
-    fn new(source: String) -> Self{
-        source.shrink_to_fit();
-        let drop_guard = ManuallyDrop::new(source);
-        let buf = source.as_mut_ptr();
-        let len = source.len();
-        Self{
-            buf,
-            len,
-        }
-        
-    }
-}
-*/
+
 
 
 // given a Ascii Slice, tries to make a Token, advancing the slice accordingly
@@ -70,16 +52,15 @@ pub fn split_from_string(source: &mut String) -> Option<Result<ScanResult>> {
             unsafe { advance(source) };
             Ok(ScanResult::Token(token))
         }
-        Err(FromCharHint::Newline) => Ok(ScanResult::Newline),
-        Err(FromCharHint::Whitespace) => {
+        Err(_) if source[0] == '\n' => Ok(ScanResult::Newline),
+        Err(_) if source[0] == ' ' => {
             let Some(whitespace_end) = source.iter().position(|&val| val != ' ') else {
                 return None;
             };
             unsafe { advance(source) };
             return split_from_string(&mut source);
         }
-        Err(FromCharHint::Incomplete) => multi_char_from_string(source),
-        Err(_) => todo!(),
+        Err(_) => multi_char_from_string(source),
     })
 }
 

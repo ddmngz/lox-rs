@@ -3,14 +3,14 @@ use crate::interpreter::RuntimeError;
 use std::ops;
 use std::cmp;
 pub type Result<T> = std::result::Result<T, RuntimeError>;
-use beef::lean::Cow;
+use crate::token::SmartString;
 
 #[derive(Clone, Debug, Display)]
-pub enum LoxObject<'source> {
+pub enum LoxObject {
     #[strum(serialize = "{0}")]
     Float(f64),
     #[strum(serialize = "{0}")]
-    String(Cow<'source,str>),
+    String(SmartString),
     #[strum(serialize = "{0}")]
     Bool(bool),
     #[strum(serialize = "nil")]
@@ -20,7 +20,7 @@ pub enum LoxObject<'source> {
 // logic for evaluating is handled through trait implementations, returning Error for invalid type
 // conversions
 
-impl ops::Neg for LoxObject<'_> {
+impl ops::Neg for LoxObject {
     type Output = Result<Self>;
     fn neg(self) -> Self::Output {
         use LoxObject::Float;
@@ -32,7 +32,7 @@ impl ops::Neg for LoxObject<'_> {
     }
 }
 
-impl ops::Not for LoxObject<'_> {
+impl ops::Not for LoxObject {
     type Output = Result<Self>;
     // Lox semantics are that Nil is false, so !Nil = true for some reason even though that's kind
     // of evil
@@ -45,7 +45,7 @@ impl ops::Not for LoxObject<'_> {
     }
 }
 
-impl<'source> ops::Add for LoxObject<'source> {
+impl ops::Add for LoxObject {
     type Output = Result<Self>;
     fn add(self, other: Self) -> Self::Output {
         use LoxObject::*;
@@ -57,7 +57,7 @@ impl<'source> ops::Add for LoxObject<'source> {
     }
 }
 
-impl ops::Sub for LoxObject<'_> {
+impl ops::Sub for LoxObject {
     type Output = Result<Self>;
     fn sub(self, other: Self) -> Self::Output {
         use LoxObject::Float;
@@ -69,7 +69,7 @@ impl ops::Sub for LoxObject<'_> {
     }
 }
 
-impl ops::Mul for LoxObject<'_>{
+impl ops::Mul for LoxObject{
     type Output = Result<Self>;
     fn mul(self, other: Self) -> Self::Output {
         use LoxObject::Float;
@@ -81,7 +81,7 @@ impl ops::Mul for LoxObject<'_>{
     }
 }
 
-impl ops::Div for LoxObject<'_> {
+impl ops::Div for LoxObject {
     type Output = Result<Self>;
     fn div(self, other: Self) -> Self::Output {
         use LoxObject::Float;
@@ -93,7 +93,7 @@ impl ops::Div for LoxObject<'_> {
     }
 }
 
-impl cmp::PartialEq for LoxObject<'_> {
+impl cmp::PartialEq for LoxObject {
     fn eq(&self, other: &Self) -> bool {
         use LoxObject::{Bool, Float, Nil, String};
         match (self, other) {
@@ -106,7 +106,7 @@ impl cmp::PartialEq for LoxObject<'_> {
     }
 }
 
-impl cmp::PartialOrd for LoxObject<'_>{
+impl cmp::PartialOrd for LoxObject{
     fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
         use LoxObject::Float;
         if let (Float(left), Float(right)) = (self, other) {

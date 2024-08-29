@@ -106,20 +106,11 @@ impl Operator{
 
 
 
-pub enum FromCharHint{
-    Whitespace,
-    Incomplete,
-    Newline,
-}
 
 impl TryFrom<char> for Token{
-    type Error = FromCharHint;
-    fn try_from(character:char) -> Result<Self, FromCharHint>{
+    type Error = ();
+    fn try_from(character:char) -> Result<Self, ()>{
         match character{
-            ' ' | '\r' | '\t'  => Err(FromCharHint::Whitespace),
-            '\n' => {
-                Err(FromCharHint::Newline)
-            },
             '(' => Ok(Self::LEFTPAREN),
             ')' => Ok(Self::RIGHTPAREN),
             '{' => Ok(Self::LEFTBRACE),
@@ -130,7 +121,9 @@ impl TryFrom<char> for Token{
             '+' => Ok(Self::PLUS),
             ';' => Ok(Self::SEMICOLON),
             '*' => Ok(Self::STAR),
-            _ => Err(FromCharHint::Incomplete),
+            ' ' | '\r' | '\t' | '\n' => Err(()), // could squish with under but this is more
+                                                 // explicit
+            _ => Err(()),
         }
     }
 }

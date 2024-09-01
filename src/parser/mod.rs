@@ -4,13 +4,11 @@ pub use error::ParsingError;
 //use crate::scanner::{TokenType::{*,self}, Token};
 use crate::scanner::ScannedToken;
 use crate::syntax_trees::expression::{
-    binary::{Binary, Operator as BinaryOperator},
-    grouping::Grouping,
-    literal::Literal,
-    unary::{Operator as UnaryOperator, Unary},
-    Expr,
+    binary::Operator as BinaryOperator,
+    unary::Operator as UnaryOperator, 
+    Expression,
 };
-use crate::syntax_trees::statement::{Expression, Print, Statement};
+use crate::syntax_trees::statement::Statement;
 use crate::token::Token;
 use std::iter::Peekable;
 
@@ -26,7 +24,7 @@ impl Parser {
         Self { iter }
     }
 
-    pub fn parse(&mut self) -> Result<Vec<&dyn Statement>> {
+    pub fn parse(&mut self) -> Result<Vec<Statement>> {
         let mut statements = Vec::new();
         while let Some(token) = self.iter.next() {
             statements.push(match token.type_ {
@@ -38,34 +36,34 @@ impl Parser {
         Ok(statements)
     }
 
-    fn print_statement(&mut self) -> Result<Print> {
+    fn print_statement(&mut self) -> Result<Statement> {
         let value = self.expression()?;
         if self.iter.next_if(|x| x.type_ == Token::SEMICOLON).is_some() {
-            Ok(Statement::new_print(value))
+            Ok(Statement::Print(value))
         } else {
             Err(ParsingError::NoSemi)
         }
     }
 
-    fn expression_statement(&mut self) -> Result<Expression> {
+    fn expression_statement(&mut self) -> Result<Statement> {
         let value = self.expression()?;
         if self.iter.next_if(|x| x.type_ == Token::SEMICOLON).is_some() {
-            Ok(Statement::new_expression(value))
+            Ok(Statement::Expression(value))
         } else {
             Err(ParsingError::NoSemi)
         }
     }
 
-    fn expression(&mut self) -> Result<&dyn Expr> {
+    fn expression(&mut self) -> Result<Expression> {
         self.equality()
     }
 
-    fn equality(&mut self) -> Result<&dyn Expr> {
+    fn equality(&mut self) -> Result<Expression>{
         let mut types = [Token::BANGEQUAL, Token::EQUALEQUAL];
         self.recursive_descend(Self::comparison, &mut types)
     }
 
-    fn comparison(&mut self) -> Result<&dyn Expr> {
+    fn comparison(&mut self) -> Result<Expression> {
         let mut types = [
             Token::GREATER,
             Token::GREATEREQUAL,
@@ -75,17 +73,17 @@ impl Parser {
         self.recursive_descend(Self::term, &mut types)
     }
 
-    fn term(&mut self) -> Result<&dyn Expr> {
+    fn term(&mut self) -> Result<Expression> {
         let mut types = [Token::MINUS, Token::PLUS];
         self.recursive_descend(Self::factor, &mut types)
     }
 
-    fn factor(&mut self) -> Result<&dyn Expr> {
+    fn factor(&mut self) -> Result<Expression> {
         let mut types = [Token::SLASH, Token::STAR];
         self.recursive_descend(Self::unary, &mut types)
     }
 
-    fn unary(&mut self) -> Result<&dyn Expr> {
+    fn unary(&mut self) -> Result<Expression> {
         if let Some(token) = self
             .iter
             .next_if(|x| [Token::BANG, Token::MINUS].contains(&x.type_))
@@ -96,12 +94,12 @@ impl Parser {
                 UnaryOperator::MINUS
             };
             let right = self.unary()?;
-            return Ok(&Unary::new(operator, right));
+            return Ok(Expression::unary(operator, right));
         }
         self.primary()
     }
 
-    fn primary(&mut self) -> Result<Literal> {
+    fn primary(&mut self) -> Result<Expression> {
         if self.iter.peek().is_none() {
             return Err(ParsingError::NoExpr);
         }
@@ -111,14 +109,14 @@ impl Parser {
             return Err(ParsingError::NoExpr);
         };
         match token {
-            Token::FALSE => Ok(Literal::r#false()),
-            Token::TRUE => Ok(Literal::r#true()),
-            Token::NIL => Ok(Literal::r#nil()),
+            Token::FALSE => Ok(false.into()),
+            Token::TRUE => Ok(true.into()),
+            Token::NIL => Ok(Expression::nil()),
             Token::NUMBER {
                 lexeme: _,
                 value: num,
-            } => Ok(Literal::float(num)),
-            Token::STRING(str_) => Ok(Literal::string(str_.into())),
+            } => Ok(num.into()),
+            Token::STRING(str_) => Ok(str_.into()),
             Token::LEFTPAREN => self.handle_paren(),
             _ => Err(ParsingError::NoExpr),
         }
@@ -143,27 +141,27 @@ fn is_terminal(token: &Token) -> bool {
 impl Parser {
     fn recursive_descend(
         &mut self,
-        f: fn(&mut Self) -> Result<&dyn Expr>,
+        f: fn(&mut Self) -> Result<Expression>,
         types: &mut [Token],
-    ) -> Result<&dyn Expr> {
-        let mut expr: Expr = f(self)?;
+    ) -> Result<Expression> {
+        let mut expr = f(self)?;
         // TODO: see if there's a way we can combine the while let to remove the unwrap
         while let Some(token) = self.iter.next_if(|x| types.contains(&x.type_)) {
             let operator = BinaryOperator::from_token(token.type_).unwrap();
             let right = f(self)?;
-            expr = Binary::new(expr, operator, right);
+            expr = Expression::binary(expr, operator, right);
         }
-        Ok(&expr)
+        Ok(expr)
     }
 
-    fn handle_paren(&mut self) -> Result<&dyn Expr> {
+    fn handle_paren(&mut self) -> Result<Expression> {
         let expr = self.expression()?;
         if self
             .iter
             .next_if(|x| x.type_ == Token::RIGHTPAREN)
             .is_some()
         {
-            Ok(Grouping::new(expr))
+            Ok(Expression::grouping(expr))
         } else {
             Err(ParsingError::UntermParen)
         }

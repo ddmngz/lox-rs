@@ -52,6 +52,6 @@ fn run(code: Box<str>) -> Result<(), Error> {
 }
 
 // TODO
-fn validate(code: &str) -> bool {
+fn validate(_code: &str) -> bool {
     true
 }

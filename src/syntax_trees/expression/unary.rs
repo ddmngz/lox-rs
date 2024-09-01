@@ -1,11 +1,12 @@
 use super::Expr;
+use super::Expression;
 use super::Result;
 use super::Visitor;
 use crate::syntax_trees::lox_object::LoxObject;
 use strum_macros::Display;
 pub struct Unary {
     pub operator: Operator,
-    pub inner: Box<dyn Expr>,
+    pub inner: Box<Expression>,
 }
 
 #[derive(Clone, Display, Debug)]
@@ -14,6 +15,15 @@ pub enum Operator {
     BANG,
     #[strum(serialize = "-")]
     MINUS,
+}
+
+impl Unary{
+    pub fn new(operator:Operator, expression:Expression) -> Self{
+        Self{
+            operator,
+            inner:Box::new(expression),
+        }
+    }
 }
 
 impl Visitor<String> for Unary {

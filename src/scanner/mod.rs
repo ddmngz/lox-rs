@@ -7,10 +7,7 @@ pub use scanned_token::ScannedToken;
 
 use crate::token::Operator;
 use crate::token::SmartString;
-use ouroboros::self_referencing;
-use std::str::CharIndices;
-
-use std::mem::ManuallyDrop;
+use std::str::Chars;
 
 type Result<T> = std::result::Result<T, ScanningError>;
 
@@ -19,8 +16,8 @@ pub enum ScanResult {
     Operator(Operator),
     SLASH,
     STRING,
-    NUMBER,
-    IDENTIFIER,
+    NUMBER(char),
+    IDENTIFIER(char),
     WHITESPACE,
     NEWLINE,
     INVALID,
@@ -30,29 +27,32 @@ pub fn scan(source: Box<str>) -> Result<Vec<ScannedToken>> {
     let mut tokens = Vec::with_capacity(source.len());
     let mut err = None;
     let mut line = 1;
-    let mut iter = source.char_indices();
-    while let Some((pos, res)) = iter.next() {
-        match scan_token(res) {
+    let mut iter = source.chars();
+    while let Some(char) = iter.next() {
+        match scan_token(char) {
             ScanResult::Token(t) => tokens.push(token(t, line)),
             ScanResult::Operator(o) => tokens.push(token(operator(o, &source), line)),
             ScanResult::NEWLINE => line += 1,
-            ScanResult::NUMBER => {
-                tokens.push(token(handle_number(&mut iter)?, line));
+            ScanResult::NUMBER(number) => {
+                tokens.push(token(handle_number(&mut iter, number)?, line));
             }
-            ScanResult::IDENTIFIER => tokens.push(token(handle_identifier(&mut iter), line)),
+            ScanResult::IDENTIFIER(letter) => tokens.push(token(handle_identifier(&mut iter, letter), line)),
             ScanResult::SLASH => {
-                if let Some('/') = peek(&iter, pos) {
-                    while iter.next().is_some_and(|(_, x)| x != '\n') {}
+                if let Some('/') = peek(&iter) {
+                    advance_while(&mut iter, |&x| x != '\n');
                 } else {
                     tokens.push(token(Token::SLASH, line));
                 }
             }
             ScanResult::STRING => {
-                if let Some(end) = iter.position(|(_, x)| x == '"') {
-                    tokens.push(token(handle_string(&source, pos, end), line));
-                } else {
-                    ScanningError::UntermString.error(line);
-                    err = Some(ScanningError::UntermString);
+                let remaining = iter.as_str().len();
+                match slice_while(&mut iter, |&x| x != '"'){
+                    None => tokens.push(token(Token::STRING(SmartString::new()),line)),
+                    Some(slice) if slice.len() == remaining => {
+                        ScanningError::UntermString.error(line);
+                        err = Some(ScanningError::UntermString);
+                    },
+                    Some(slice) => tokens.push(string(slice, line)),
                 }
             }
             ScanResult::WHITESPACE => {}
@@ -66,6 +66,13 @@ pub fn scan(source: Box<str>) -> Result<Vec<ScannedToken>> {
         Some(error) => Err(error),
         None => Ok(tokens),
     }
+}
+
+
+
+fn string(source:&str, line:u32) -> ScannedToken{
+    let token = handle_string(source);
+    ScannedToken::new(token, line)
 }
 
 fn operator(operator: Operator, source: &str) -> Token {
@@ -91,13 +98,13 @@ fn scan_token(char: char) -> ScanResult {
         ' ' | '\r' | '\t' => ScanResult::WHITESPACE,
         '\n' => ScanResult::NEWLINE,
         '=' => ScanResult::Operator(Operator::EQUAL),
-        '>' => ScanResult::Operator(Operator::LESS),
-        '<' => ScanResult::Operator(Operator::GREATER),
+        '>' => ScanResult::Operator(Operator::GREATER),
+        '<' => ScanResult::Operator(Operator::LESS),
         '!' => ScanResult::Operator(Operator::BANG),
         '/' => ScanResult::SLASH,
         '"' => ScanResult::STRING,
-        _ if char.is_ascii_digit() => ScanResult::NUMBER,
-        _ if char.is_alphabetic() => ScanResult::IDENTIFIER,
+        number if number.is_ascii_digit() => ScanResult::NUMBER(number),
+        letter if letter.is_alphabetic() => ScanResult::IDENTIFIER(letter),
         _ => ScanResult::INVALID,
     }
 }
@@ -106,42 +113,73 @@ fn token(token: Token, line: u32) -> ScannedToken {
     ScannedToken::new(token, line)
 }
 
-fn handle_identifier(iter: &mut CharIndices) -> Token {
-    let base = iter.as_str();
-    let mut end = 1;
-    while iter.next().is_some_and(|(_, x)| x.is_ascii_alphabetic()) {
-        end += 1;
+fn handle_identifier(iter: &mut Chars, letter:char) -> Token {
+    let mut literal = SmartString::new();
+    literal.push(letter);
+    if let Some(slice) = slice_while(iter, char::is_ascii_alphabetic){
+        literal.push_str(slice);
     }
-    Token::IDENTIFIER(SmartString::from(&base[..end]))
+    Token::IDENTIFIER(literal)
 }
 
-fn handle_number(iter: &mut CharIndices) -> Result<Token> {
-    let base = iter.as_str();
-    let mut end = 1;
-    while iter.next().is_some_and(|(_, x)| x.is_ascii_digit()) {
+fn handle_number(iter: &mut Chars, number:char) -> Result<Token> {
+    let mut lexeme = SmartString::new();
+    lexeme.push(number);
+    eprintln!("start lexeme: {lexeme}");
+    let base = &iter.as_str();
+    let mut end = advance_while(iter, char::is_ascii_digit);
+    if let Some('.') = peek(iter){
+        iter.next();
         end += 1;
+
+        end += advance_while(iter, char::is_ascii_digit);
     }
-    if let Some('.') = base.chars().nth(end) {
-        while iter.next().is_some_and(|(_, x)| x.is_ascii_digit()) {
-            end += 1;
-        }
-    }
-    let slice = &base[..end];
-    let value: f64 = slice.parse()?;
-    let lexeme = SmartString::from(slice);
+    lexeme.push_str(&base[..end]);
+    eprintln!("end = {end}, final lexeme: {lexeme}");
+    let value: f64 = lexeme.parse()?;
     Ok(Token::NUMBER { lexeme, value })
 }
 
-fn peek(iter: &CharIndices, pos: usize) -> Option<char> {
-    iter.as_str().chars().nth(pos + 1)
+fn advance_while<F>(iter: &mut Chars, f:F) -> usize
+where F:Fn(&char) -> bool
+{
+    let start = iter.as_str();
+    let mut amount = 0;
+    while peek(iter).is_some_and(|x| f(&x)){
+        amount +=1;
+        iter.next();
+    }
+    println!("advance while from {start} went {amount}");
+    amount
 }
 
-fn handle_string(source: &str, beginning: usize, end: usize) -> Token {
-    let string = if end - beginning > smartstring::MAX_INLINE {
+
+fn slice_while<'a, F>(iter:&mut Chars<'a>, f:F) -> Option<&'a str>
+where F:Fn(&char) -> bool
+{
+    let start = iter.as_str();
+    let end = advance_while(iter, f);
+
+
+    if end == 0{
+        None
+    }else if end == start.len(){
+        Some(start)
+    }else{
+        Some(&start[..end])
+    }
+}
+
+fn peek(iter: &Chars) -> Option<char> {
+    iter.as_str().chars().next()
+}
+
+fn handle_string(source: &str) -> Token {
+    let string = if source.len() > smartstring::MAX_INLINE {
         // in case I want to at some point instead try to make it take allocation of that section
-        SmartString::from(&source[beginning..end])
+        SmartString::from(source)
     } else {
-        SmartString::from(&source[beginning..end])
+        SmartString::from(source)
     };
     Token::STRING(string)
 }
@@ -158,15 +196,38 @@ mod tests {
         }
     }
 
+    fn tokenize_float(float:f64) -> Token{
+        NUMBER{
+            lexeme: float.to_string().into(),
+            value: float,
+        }
+    }
+
     #[test]
     fn scan_equation() {
         compare_scan("1+1", vec![one(), PLUS, one()])
     }
 
     #[test]
+    fn scan_identifier() {
+        compare_one("woaw", IDENTIFIER("woaw".into()))
+    }
+
+    #[test]
     fn scan_quotes() {
         compare_scan("\"hiiii\"", vec![STRING("hiiii".into())])
     }
+
+    #[test]
+    fn scan_empty() {
+        compare_one("\"\"", STRING(SmartString::new()));
+    }
+
+    #[test]
+    fn skip_whitespace(){
+        assert!(scan("\t \n\n \t \r".into()).is_ok_and(|x| x.is_empty()))
+    }
+
 
     #[test]
     fn scan_parens() {
@@ -177,8 +238,50 @@ mod tests {
     }
 
     #[test]
+    fn scan_integer(){
+        compare_one("123456", tokenize_float(123456.0))
+    }
+
+    #[test]
+    fn scan_decimal() {
+        compare_one("123456.123456", tokenize_float(123456.123456))
+    }
+
+
+    #[test]
     fn scan_paren_equation() {
         compare_scan("(1+1)", vec![LEFTPAREN, one(), PLUS, one(), RIGHTPAREN])
+    }
+
+    #[test]
+    fn ignore_comments(){
+        compare_scan("// this is a comment should be ignored \n 123", vec![tokenize_float(123.0)]);
+    }
+
+    #[test]
+    fn identifier(){
+        compare_one("ababa", IDENTIFIER("ababa".into()))
+    }
+
+    #[test]
+    fn comparison(){
+        compare_one("<", LESS)
+    }
+
+    #[test]
+    fn comparison_equal(){
+        compare_one("<=", LESSEQUAL)
+    }
+
+    #[test]
+    fn unterm_string(){
+        assert!(scan("\"unterminated moment".into()).is_err_and(|e| e == ScanningError::UntermString))
+    }
+
+    fn compare_one(string:&str, target: Token) {
+        let string:Box<str> = string.into();
+        let token = scan(string).unwrap()[0].type_.clone();
+        assert_eq!(token,target)
     }
 
     fn compare_scan(string: &str, goal: Vec<Token>) {

@@ -1,16 +1,28 @@
-use super::Expr;
+use super::Expression;
 use super::LoxObject;
 use super::Result;
 use super::Visitor;
 use crate::interpreter::RuntimeError;
 use crate::scanner::Token;
 use strum_macros::Display;
+use super::Expr;
 
 pub struct Binary {
-    pub left: Box<dyn Expr>,
+    pub left: Box<Expression>,
     pub operator: Operator,
-    pub right: Box<dyn Expr>,
+    pub right: Box<Expression>,
 }
+
+impl Binary{
+    pub fn new(left:Expression, operator:Operator, right:Expression) -> Self{
+        Self{
+            left: Box::new(left),
+            operator,
+            right: Box::new(right),
+        }
+    }
+}
+
 
 impl Visitor<String> for Binary {
     fn accept(&self) -> String {

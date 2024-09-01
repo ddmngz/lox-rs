@@ -29,7 +29,7 @@ impl Unary{
 impl Visitor<String> for Unary {
     fn accept(&self) -> String {
         let inner = self.inner.print();
-        format!("{}{}", self.operator, inner)
+        format!("UNARY({}{})", self.operator, inner)
     }
 }
 

@@ -16,6 +16,7 @@ pub enum Expression{
     Grouping(grouping::Grouping),
     Literal(literal::Literal),
     Unary(unary::Unary),
+    Variable(SmartString)
 }
 
 pub trait Expr {

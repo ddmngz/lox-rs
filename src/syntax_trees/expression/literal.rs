@@ -9,7 +9,7 @@ pub struct Literal {
 
 impl Visitor<String> for Literal {
     fn accept(&self) -> String {
-        self.value.to_string()
+        format!("LITERAL ({})",self.value)
     }
 }
 

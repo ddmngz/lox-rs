@@ -6,7 +6,7 @@ pub struct ScannedToken {
     /// What the token this is, also stores value
     pub type_: Token,
     /// Line number of the lexeme
-    line: u32,
+    pub line: u32,
 }
 
 impl ScannedToken {

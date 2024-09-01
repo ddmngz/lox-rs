@@ -17,7 +17,7 @@ impl Grouping{
 
 impl Visitor<String> for Grouping {
     fn accept(&self) -> String {
-        self.expression.print()
+        format!("GROUPING ({})",self.expression.print())
     }
 }
 

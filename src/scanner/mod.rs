@@ -54,6 +54,8 @@ pub fn scan(source: Box<str>) -> Result<Vec<ScannedToken>> {
                     },
                     Some(slice) => tokens.push(string(slice, line)),
                 }
+                iter.next();
+                // if it's "" or "*" go past the last quote, otherwise it'll just be None
             }
             ScanResult::WHITESPACE => {}
             ScanResult::INVALID => {
@@ -119,7 +121,11 @@ fn handle_identifier(iter: &mut Chars, letter:char) -> Token {
     if let Some(slice) = slice_while(iter, char::is_ascii_alphabetic){
         literal.push_str(slice);
     }
-    Token::IDENTIFIER(literal)
+    if let Some(keyword) = Token::from_keyword(&literal){
+        keyword
+    }else{
+        Token::IDENTIFIER(literal)
+    }
 }
 
 fn handle_number(iter: &mut Chars, number:char) -> Result<Token> {
@@ -141,7 +147,6 @@ fn handle_number(iter: &mut Chars, number:char) -> Result<Token> {
 fn advance_while<F>(iter: &mut Chars, f:F) -> usize
 where F:Fn(&char) -> bool
 {
-    let start = iter.as_str();
     let mut amount = 0;
     while peek(iter).is_some_and(|x| f(&x)){
         amount +=1;
@@ -273,6 +278,11 @@ mod tests {
     #[test]
     fn unterm_string(){
         assert!(scan("\"unterminated moment".into()).is_err_and(|e| e == ScanningError::UntermString))
+    }
+
+    #[test]
+    fn unterm_statement(){
+        compare_scan("print \"hello world\";", vec![PRINT, STRING("hello world".into()), SEMICOLON]);
     }
 
     fn compare_one(string:&str, target: Token) {

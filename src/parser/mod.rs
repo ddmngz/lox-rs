@@ -26,15 +26,32 @@ impl Parser {
 
     pub fn parse(&mut self) -> Result<Vec<Statement>> {
         let mut statements = Vec::new();
-        while let Some(token) = self.iter.next() {
-            statements.push(match token.type_ {
-                Token::PRINT => self.print_statement()?,
-                _ => self.expression_statement()?,
-            });
+        while let Some(token) = self.iter.peek() {
+            let statement = match token.type_{
+                Token::VAR => self.varDeclaration(),
+                _ => self.statement(),
+            };
+            if let Err(e) = statement{
+                self._synchronize();
+                return Err(e)
+            }
+            statements.push(statement.unwrap())
+            //statements.push(self.declaration()?);        
         }
 
         Ok(statements)
     }
+
+
+    fn statement(&mut self) -> Result<Statement>{
+
+        todo!() 
+    }
+/*match token.type_ {
+                Token::PRINT => self.print_statement()?,
+                _ => self.expression_statement()?,
+            });
+*/
 
     fn print_statement(&mut self) -> Result<Statement> {
         let value = self.expression()?;

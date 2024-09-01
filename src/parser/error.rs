@@ -8,4 +8,8 @@ pub enum ParsingError {
     NoExpr,
     #[error("Expect ';' after expression.")]
     NoSemi,
+    #[error("Expected Variable Name.")]
+    NoVarName,
+    #[error("Invalid.")]
+    Invalid,
 }

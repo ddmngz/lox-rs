@@ -28,7 +28,7 @@ impl Visitor<String> for Binary {
     fn accept(&self) -> String {
         let left = self.left.print();
         let right = self.right.print();
-        format!("{left}{operator}{right}", operator = self.operator)
+        format!("BINARY OPERATOR({left}{operator}{right})", operator = self.operator)
     }
 }
 
@@ -39,8 +39,8 @@ impl Visitor<Result<LoxObject>> for Binary {
             BANGEQUAL, EQUALEQUAL, GREATER, GREATEREQUAL, LESS, LESSEQUAL, MINUS, PLUS, SLASH, STAR,
         };
 
-        let left = self.evaluate()?;
-        let right = self.evaluate()?;
+        let left = self.left.evaluate()?;
+        let right = self.right.evaluate()?;
 
         // can_compare does the typecheck so that we throw invalidOperand when comparing instead of
         // returning false

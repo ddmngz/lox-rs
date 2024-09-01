@@ -38,7 +38,7 @@ pub fn run_prompt() -> Result<(), Error> {
 }
 
 fn run(code: Box<str>) -> Result<(), Error> {
-    if validate(&code) {
+    if !validate(&code) {
         return Err(Error::NotAscii);
     };
     let tokens = scanner::scan(code)?;

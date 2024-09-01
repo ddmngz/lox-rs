@@ -125,7 +125,6 @@ fn handle_identifier(iter: &mut Chars, letter:char) -> Token {
 fn handle_number(iter: &mut Chars, number:char) -> Result<Token> {
     let mut lexeme = SmartString::new();
     lexeme.push(number);
-    eprintln!("start lexeme: {lexeme}");
     let base = &iter.as_str();
     let mut end = advance_while(iter, char::is_ascii_digit);
     if let Some('.') = peek(iter){
@@ -135,7 +134,6 @@ fn handle_number(iter: &mut Chars, number:char) -> Result<Token> {
         end += advance_while(iter, char::is_ascii_digit);
     }
     lexeme.push_str(&base[..end]);
-    eprintln!("end = {end}, final lexeme: {lexeme}");
     let value: f64 = lexeme.parse()?;
     Ok(Token::NUMBER { lexeme, value })
 }
@@ -149,7 +147,6 @@ where F:Fn(&char) -> bool
         amount +=1;
         iter.next();
     }
-    println!("advance while from {start} went {amount}");
     amount
 }
 

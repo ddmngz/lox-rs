@@ -1,3 +1,3 @@
 pub mod expression;
-pub mod statement;
 pub mod lox_object;
+pub mod statement;

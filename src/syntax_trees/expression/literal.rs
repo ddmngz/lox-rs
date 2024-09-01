@@ -1,18 +1,18 @@
-use crate::syntax_trees::lox_object::LoxObject;
 use super::Visitor;
+use crate::syntax_trees::lox_object::LoxObject;
 #[derive(Clone, Debug)]
 pub struct Literal {
     pub value: LoxObject,
 }
 
-impl Visitor<String> for Literal{
-    fn accept(&self) -> String{
+impl Visitor<String> for Literal {
+    fn accept(&self) -> String {
         self.value.to_string()
     }
 }
 
-impl Visitor<LoxObject> for Literal{
-    fn accept(&self) -> LoxObject{
+impl Visitor<LoxObject> for Literal {
+    fn accept(&self) -> LoxObject {
         self.value.clone()
     }
 }
@@ -24,7 +24,7 @@ impl Literal {
         }
     }
 
-    pub fn nil() -> Self{
+    pub fn nil() -> Self {
         Self {
             value: LoxObject::Nil,
         }

@@ -1,7 +1,7 @@
-use strum_macros::Display;
 use crate::interpreter::RuntimeError;
-use std::ops;
 use std::cmp;
+use std::ops;
+use strum_macros::Display;
 pub type Result<T> = std::result::Result<T, RuntimeError>;
 use crate::token::SmartString;
 
@@ -69,7 +69,7 @@ impl ops::Sub for LoxObject {
     }
 }
 
-impl ops::Mul for LoxObject{
+impl ops::Mul for LoxObject {
     type Output = Result<Self>;
     fn mul(self, other: Self) -> Self::Output {
         use LoxObject::Float;
@@ -106,7 +106,7 @@ impl cmp::PartialEq for LoxObject {
     }
 }
 
-impl cmp::PartialOrd for LoxObject{
+impl cmp::PartialOrd for LoxObject {
     fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
         use LoxObject::Float;
         if let (Float(left), Float(right)) = (self, other) {

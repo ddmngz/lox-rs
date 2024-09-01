@@ -54,7 +54,6 @@ pub enum Token {
     EOF,
 }
 
-
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -78,7 +77,7 @@ pub enum Operator {
 }
 
 impl Into<Token> for Operator {
-    fn into(self) -> Token{
+    fn into(self) -> Token {
         match self {
             Self::BANG => Token::BANG,
             Self::EQUAL => Token::EQUAL,
@@ -88,8 +87,8 @@ impl Into<Token> for Operator {
     }
 }
 
-impl Operator{
-    pub fn into_equal(self) -> Token{
+impl Operator {
+    pub fn into_equal(self) -> Token {
         match self {
             Self::BANG => Token::BANGEQUAL,
             Self::EQUAL => Token::EQUALEQUAL,
@@ -99,18 +98,10 @@ impl Operator{
     }
 }
 
-
-
-
-
-
-
-
-
-impl TryFrom<char> for Token{
+impl TryFrom<char> for Token {
     type Error = ();
-    fn try_from(character:char) -> Result<Self, ()>{
-        match character{
+    fn try_from(character: char) -> Result<Self, ()> {
+        match character {
             '(' => Ok(Self::LEFTPAREN),
             ')' => Ok(Self::RIGHTPAREN),
             '{' => Ok(Self::LEFTBRACE),
@@ -122,15 +113,15 @@ impl TryFrom<char> for Token{
             ';' => Ok(Self::SEMICOLON),
             '*' => Ok(Self::STAR),
             ' ' | '\r' | '\t' | '\n' => Err(()), // could squish with under but this is more
-                                                 // explicit
+            // explicit
             _ => Err(()),
         }
     }
 }
 
 impl Token {
-    pub fn from_keyword(keyword: &str) -> Option<Self>{
-        match keyword{
+    pub fn from_keyword(keyword: &str) -> Option<Self> {
+        match keyword {
             "and" => Some(Self::AND),
             "class" => Some(Self::CLASS),
             "else" => Some(Self::ELSE),

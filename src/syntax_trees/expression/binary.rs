@@ -1,10 +1,10 @@
 use super::Expr;
-use super::Visitor;
 use super::LoxObject;
 use super::Result;
+use super::Visitor;
 use crate::interpreter::RuntimeError;
-use strum_macros::Display;
 use crate::scanner::Token;
+use strum_macros::Display;
 
 pub struct Binary {
     pub left: Box<dyn Expr>,
@@ -12,20 +12,20 @@ pub struct Binary {
     pub right: Box<dyn Expr>,
 }
 
-impl Visitor<String> for Binary{
-    fn accept(&self) -> String{
+impl Visitor<String> for Binary {
+    fn accept(&self) -> String {
         let left = self.left.print();
         let right = self.right.print();
-        format!("{left}{operator}{right}", operator=self.operator)
+        format!("{left}{operator}{right}", operator = self.operator)
     }
 }
 
-impl Visitor<Result<LoxObject>> for Binary{
-    fn accept(&self) -> Result<LoxObject>{
+impl Visitor<Result<LoxObject>> for Binary {
+    fn accept(&self) -> Result<LoxObject> {
+        use LoxObject::Bool;
         use Operator::{
             BANGEQUAL, EQUALEQUAL, GREATER, GREATEREQUAL, LESS, LESSEQUAL, MINUS, PLUS, SLASH, STAR,
         };
-        use LoxObject::Bool;
 
         let left = self.evaluate()?;
         let right = self.evaluate()?;
@@ -78,7 +78,7 @@ pub enum Operator {
 impl Operator {
     // trying really hard to prefer duplication to the wrong abstraction here
     pub fn from_token(token: Token) -> Option<Self> {
-        match token{
+        match token {
             Token::EQUALEQUAL => Some(Self::EQUALEQUAL),
             Token::BANGEQUAL => Some(Self::BANGEQUAL),
             Token::GREATER => Some(Self::GREATER),
@@ -93,5 +93,3 @@ impl Operator {
         }
     }
 }
-
-

@@ -9,4 +9,3 @@ pub enum ParsingError {
     #[error("Expect ';' after expression.")]
     NoSemi,
 }
-

@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub enum ScanningError{
+pub enum ScanningError {
     #[error("Unterminated String")]
     UntermString,
     #[error("Unexpected Character")]
@@ -10,8 +10,7 @@ pub enum ScanningError{
     FloatParse(#[from] std::num::ParseFloatError),
 }
 
-impl ScanningError{
-
+impl ScanningError {
     pub fn error(self, line: u32) -> Self {
         self.report(line, "");
         self
@@ -20,7 +19,4 @@ impl ScanningError{
     pub fn report(&self, line: u32, whre: &str) {
         eprintln!("[line {}] at {}: {}", line, whre, self);
     }
-
-
 }
-

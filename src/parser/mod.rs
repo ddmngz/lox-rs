@@ -4,9 +4,13 @@ pub use error::ParsingError;
 //use crate::scanner::{TokenType::{*,self}, Token};
 use crate::scanner::ScannedToken;
 use crate::syntax_trees::expression::{
-    Binary, BinaryOperator, Expr, Grouping, Literal, Unary, UnaryOperator,
+    binary::{Binary, Operator as BinaryOperator},
+    grouping::Grouping,
+    literal::Literal,
+    unary::{Operator as UnaryOperator, Unary},
+    Expr,
 };
-use crate::syntax_trees::statement::Statement;
+use crate::syntax_trees::statement::{Expression, Print, Statement};
 use crate::token::Token;
 use std::iter::Peekable;
 
@@ -34,7 +38,7 @@ impl Parser {
         Ok(statements)
     }
 
-    fn print_statement(&mut self) -> Result<&dyn Statement> {
+    fn print_statement(&mut self) -> Result<Print> {
         let value = self.expression()?;
         if self.iter.next_if(|x| x.type_ == Token::SEMICOLON).is_some() {
             Ok(Statement::new_print(value))
@@ -43,7 +47,7 @@ impl Parser {
         }
     }
 
-    fn expression_statement(&mut self) -> Result<&dyn Statement> {
+    fn expression_statement(&mut self) -> Result<Expression> {
         let value = self.expression()?;
         if self.iter.next_if(|x| x.type_ == Token::SEMICOLON).is_some() {
             Ok(Statement::new_expression(value))
@@ -102,10 +106,11 @@ impl Parser {
             return Err(ParsingError::NoExpr);
         }
 
-        let Some(ScannedToken{type_:token, ..}) = self.iter.next_if(|x| is_terminal(&x.type_)) else{
-            return Err(ParsingError::NoExpr)
+        let Some(ScannedToken { type_: token, .. }) = self.iter.next_if(|x| is_terminal(&x.type_))
+        else {
+            return Err(ParsingError::NoExpr);
         };
-        match token{
+        match token {
             Token::FALSE => Ok(Literal::r#false()),
             Token::TRUE => Ok(Literal::r#true()),
             Token::NIL => Ok(Literal::r#nil()),
@@ -120,9 +125,19 @@ impl Parser {
     }
 }
 
-fn is_terminal(token:&Token) -> bool{
-    matches!(token, Token::FALSE|Token::TRUE|Token::NIL|Token::NUMBER{lexeme:_, value:_}|Token::STRING(_)|Token::LEFTPAREN)
-
+fn is_terminal(token: &Token) -> bool {
+    matches!(
+        token,
+        Token::FALSE
+            | Token::TRUE
+            | Token::NIL
+            | Token::NUMBER {
+                lexeme: _,
+                value: _
+            }
+            | Token::STRING(_)
+            | Token::LEFTPAREN
+    )
 }
 
 impl Parser {

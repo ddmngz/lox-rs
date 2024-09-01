@@ -7,28 +7,59 @@ pub use scanned_token::ScannedToken;
 
 use crate::token::Operator;
 use crate::token::SmartString;
+use ouroboros::self_referencing;
+use std::str::CharIndices;
 
 use std::mem::ManuallyDrop;
 
 type Result<T> = std::result::Result<T, ScanningError>;
 
 pub enum ScanResult {
-    Newline,
     Token(Token),
+    Operator(Operator),
+    SLASH,
+    STRING,
+    NUMBER,
+    IDENTIFIER,
+    WHITESPACE,
+    NEWLINE,
+    INVALID,
 }
 
-pub fn scan(mut source: Box<str>) -> Result<Vec<ScannedToken>> {
+pub fn scan(source: Box<str>) -> Result<Vec<ScannedToken>> {
     let mut tokens = Vec::with_capacity(source.len());
     let mut err = None;
     let mut line = 1;
-    let mut cur = 0;
-    while let Some(res) = source.get(cur) {
-        match Token::try_from(res) {
-            Ok(ScanResult::Newline) => line = line + 1,
-            Ok(ScanResult::Token(token)) => {
-                tokens.push(ScannedToken::new(token, line));
+    let mut iter = source.char_indices();
+    while let Some((pos, res)) = iter.next() {
+        match scan_token(res) {
+            ScanResult::Token(t) => tokens.push(token(t, line)),
+            ScanResult::Operator(o) => tokens.push(token(operator(o, &source), line)),
+            ScanResult::NEWLINE => line += 1,
+            ScanResult::NUMBER => {
+                tokens.push(token(handle_number(&mut iter)?, line));
             }
-            Err(e) => err = Some(e),
+            ScanResult::IDENTIFIER => tokens.push(token(handle_identifier(&mut iter), line)),
+            ScanResult::SLASH => {
+                if let Some('/') = peek(&iter, pos) {
+                    while iter.next().is_some_and(|(_, x)| x != '\n') {}
+                } else {
+                    tokens.push(token(Token::SLASH, line));
+                }
+            }
+            ScanResult::STRING => {
+                if let Some(end) = iter.position(|(_, x)| x == '"') {
+                    tokens.push(token(handle_string(&source, pos, end), line));
+                } else {
+                    ScanningError::UntermString.error(line);
+                    err = Some(ScanningError::UntermString);
+                }
+            }
+            ScanResult::WHITESPACE => {}
+            ScanResult::INVALID => {
+                ScanningError::Syntax.error(line);
+                err = Some(ScanningError::Syntax);
+            }
         }
     }
     match err {
@@ -37,180 +68,82 @@ pub fn scan(mut source: Box<str>) -> Result<Vec<ScannedToken>> {
     }
 }
 
-
-
-
-
-// given a Ascii Slice, tries to make a Token, advancing the slice accordingly
-pub fn split_from_string(source: &mut String) -> Option<Result<ScanResult>> {
-    if source.is_empty() {
-        return None;
-    }
-
-    Some(match Token::try_from(source[0]) {
-        Ok(token) => {
-            unsafe { advance(source) };
-            Ok(ScanResult::Token(token))
-        }
-        Err(_) if source[0] == '\n' => Ok(ScanResult::Newline),
-        Err(_) if source[0] == ' ' => {
-            let Some(whitespace_end) = source.iter().position(|&val| val != ' ') else {
-                return None;
-            };
-            unsafe { advance(source) };
-            return split_from_string(&mut source);
-        }
-        Err(_) => multi_char_from_string(source),
-    })
-}
-
-// Makes a Token out of multi-character Lexemes (comments, ==, Strings, etc)
-fn multi_char_from_string(source: &mut String) -> Result<ScanResult> {
-    match source[0] {
-        '=' => Ok(ScanResult::Token(split_off_operator(
-            Operator::EQUAL,
-            source,
-        ))),
-        '>' => Ok(ScanResult::Token(split_off_operator(
-            Operator::LESS,
-            source,
-        ))),
-        '<' => Ok(ScanResult::Token(split_off_operator(
-            Operator::GREATER,
-            source,
-        ))),
-        '!' => Ok(ScanResult::Token(split_off_operator(
-            Operator::BANG,
-            source,
-        ))),
-        '/' => Ok(if source.len() >= 2 && source[1] == '/' {
-            if let Some(position) = source.iter().position(|&val| val == '\n') {
-                unsafe { shrink_start(source, position + 1) };
-                ScanResult::Newline
-            } else {
-                unsafe { advance(source) };
-                ScanResult::Newline
-            }
-        } else {
-            ScanResult::Token(Token::SLASH)
-        }),
-        '"' => Ok(ScanResult::Token(split_off_string(source)?)),
-        val if val.is_ascii_digit() => Ok(ScanResult::Token(split_off_number(source)?)),
-        val if val.is_alphabetic() => Ok(ScanResult::Token(split_off_identifier(source))),
-        val => Err(ScanningError::Syntax),
-    }
-}
-
-// Makes an Operator out of a slice
-fn split_off_operator(operator: Operator, source: &mut String) -> Token {
-    if source.len() >= 2 && source[1] == '=' {
-        unsafe { shrink_start(source, 2) };
+fn operator(operator: Operator, source: &str) -> Token {
+    if source.len() >= 2 && source.chars().nth(1).is_some_and(|x| x == '=') {
         operator.into_equal()
     } else {
-        unsafe { advance(source) };
         operator.into()
     }
 }
 
-// Makes a lox string from a slice
-fn split_off_string(source: &mut String) -> Result<Token> {
-    match get_literal(source, |val| *val == '"') {
-        (_, true) => Err(ScanningError::UntermString),
-        (literal, _) => Ok(Token::STRING(literal)),
+fn scan_token(char: char) -> ScanResult {
+    match char {
+        '(' => ScanResult::Token(Token::LEFTPAREN),
+        ')' => ScanResult::Token(Token::RIGHTPAREN),
+        '{' => ScanResult::Token(Token::LEFTBRACE),
+        '}' => ScanResult::Token(Token::RIGHTBRACE),
+        ',' => ScanResult::Token(Token::COMMA),
+        '.' => ScanResult::Token(Token::DOT),
+        '-' => ScanResult::Token(Token::MINUS),
+        '+' => ScanResult::Token(Token::PLUS),
+        ';' => ScanResult::Token(Token::SEMICOLON),
+        '*' => ScanResult::Token(Token::STAR),
+        ' ' | '\r' | '\t' => ScanResult::WHITESPACE,
+        '\n' => ScanResult::NEWLINE,
+        '=' => ScanResult::Operator(Operator::EQUAL),
+        '>' => ScanResult::Operator(Operator::LESS),
+        '<' => ScanResult::Operator(Operator::GREATER),
+        '!' => ScanResult::Operator(Operator::BANG),
+        '/' => ScanResult::SLASH,
+        '"' => ScanResult::STRING,
+        _ if char.is_ascii_digit() => ScanResult::NUMBER,
+        _ if char.is_alphabetic() => ScanResult::IDENTIFIER,
+        _ => ScanResult::INVALID,
     }
 }
 
-fn split_off_number(source: &mut String) -> Result<Token> {
-    let mut split_point = None;
-    let mut found_dot = false;
-    for (pos, val) in source.iter().enumerate() {
-        match val.is_ascii_digit() {
-            true => continue,
-            false if found_dot == false && val.as_char() == '.' => {
-                found_dot = true;
-                continue;
-            }
-            false => {
-                split_point = Some(pos);
-                break;
-            }
+fn token(token: Token, line: u32) -> ScannedToken {
+    ScannedToken::new(token, line)
+}
+
+fn handle_identifier(iter: &mut CharIndices) -> Token {
+    let base = iter.as_str();
+    let mut end = 1;
+    while iter.next().is_some_and(|(_, x)| x.is_ascii_alphabetic()) {
+        end += 1;
+    }
+    Token::IDENTIFIER(SmartString::from(&base[..end]))
+}
+
+fn handle_number(iter: &mut CharIndices) -> Result<Token> {
+    let base = iter.as_str();
+    let mut end = 1;
+    while iter.next().is_some_and(|(_, x)| x.is_ascii_digit()) {
+        end += 1;
+    }
+    if let Some('.') = base.chars().nth(end) {
+        while iter.next().is_some_and(|(_, x)| x.is_ascii_digit()) {
+            end += 1;
         }
     }
-    let lexeme = if let Some(point) = split_point {
-        unsafe { shrink_start(source, point) }
-    } else {
-        unsafe { shrink_start(source, 1) }
-    };
-
-    let value: f64 = lexeme.as_str().parse()?;
-
+    let slice = &base[..end];
+    let value: f64 = slice.parse()?;
+    let lexeme = SmartString::from(slice);
     Ok(Token::NUMBER { lexeme, value })
 }
 
-fn split_off_identifier(source: &mut String) -> Token {
-    let (literal, _) = get_literal(source, |val| val.is_alphabetic());
-    Token::IDENTIFIER(literal)
+fn peek(iter: &CharIndices, pos: usize) -> Option<char> {
+    iter.as_str().chars().nth(pos + 1)
 }
 
-fn get_literal<F>(source: &mut String, f: F) -> (SmartString, bool)
-where
-    F: FnMut(&String) -> bool,
-{
-    let (split_point, ate_source) = match source.iter().position(f) {
-        Some(index) => (index, false),
-        None => (source.len() - 1, true),
+fn handle_string(source: &str, beginning: usize, end: usize) -> Token {
+    let string = if end - beginning > smartstring::MAX_INLINE {
+        // in case I want to at some point instead try to make it take allocation of that section
+        SmartString::from(&source[beginning..end])
+    } else {
+        SmartString::from(&source[beginning..end])
     };
-    let literal = unsafe { shrink_start(source, split_point) };
-
-    (literal, ate_source)
-}
-
-// requires that String is a valid String, i.e.
-// String was allocated with the same allocator as stdlib
-// string.length and string.capacity are accurate
-// to is inclusive, so it will take some string to string[to..]
-unsafe fn shrink_start(mut string: &mut String, to: usize) {
-    if string.len() > 2 {
-        return String::new();
-    }
-
-    let mut drop_guard = ManuallyDrop::new(string);
-    let len = string.len() - to;
-    let capacity = string.capacity() - to;
-    let mut buf = string.as_mut_ptr();
-    assert!(string.is_char_boundary(to));
-    // alignment of u8 is just 1
-    buf = unsafe { buf.add(to) };
-    *string = unsafe { String::from_raw_parts(buf, len, capacity) };
-}
-
-unsafe fn advance(string: &mut String) {
-    unsafe { shrink_start(string, 1) }
-}
-
-/// splits a String, assumes the first section is smaller, and so uses a compact SmartString
-/// panics if at is not at a utf8 boundary
-/// safe if and only if String::from_raw_parts holds, i.e:
-/// * The memory at buf needs to have been previously allocated by the same allocator the standard library uses, with a required alignment of exactly 1.
-/// * length needs to be less than or equal to capacity.
-/// * capacity needs to be the correct value.
-/// * The first length bytes at buf need to be valid UTF-8.
-unsafe fn split_string(string: String, at: usize) -> (SmartString, String) {
-    let capacity = string.capacity();
-    let mut string = ManuallyDrop::new(string);
-    let (mut left, mut right) = string.as_mut_str().split_at_mut(at);
-
-    let left_len = left.len();
-    let left = left.as_mut_ptr();
-
-    let right_len = right.len();
-    let right = right.as_mut_ptr();
-    let right_capacity = capacity - left_len;
-
-    let left = unsafe { String::from_raw_parts(left, left_len, left_len) };
-    let right = unsafe { String::from_raw_parts(right, right_len, right_capacity) };
-
-    (left.into(), right)
+    Token::STRING(string)
 }
 
 #[cfg(test)]
@@ -249,8 +182,12 @@ mod tests {
     }
 
     fn compare_scan(string: &str, goal: Vec<Token>) {
-        let string = string.into();
-        let scanned_tokens: Vec<_> = scan(string).unwrap().into_iter().map(|x| x.type_).collect();
+        let string: Box<str> = string.into();
+        let scanned_tokens: Vec<_> = scan(string.clone())
+            .unwrap()
+            .into_iter()
+            .map(|x| x.type_)
+            .collect();
         println!("{:?}", scanned_tokens);
         let scanned_tokens = scan(string).unwrap().into_iter().map(|x| x.type_);
         for (scanned_token, goal_token) in std::iter::zip(scanned_tokens, goal) {

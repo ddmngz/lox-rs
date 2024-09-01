@@ -1,7 +1,7 @@
-use thiserror::Error;
-pub use crate::scanner::ScanningError;
-use crate::parser::ParsingError;
 use crate::interpreter::RuntimeError;
+use crate::parser::ParsingError;
+pub use crate::scanner::ScanningError;
+use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -23,10 +23,6 @@ pub enum Error {
     RuntimeError(#[from] RuntimeError),
 }
 
-
-
-
-
 impl Error {
     pub fn error(self, line: u32) -> Self {
         self.report(line, "");
@@ -36,5 +32,4 @@ impl Error {
     pub fn report(&self, line: u32, whre: &str) {
         eprintln!("[line {}] at {}: {}", line, whre, self);
     }
-
 }

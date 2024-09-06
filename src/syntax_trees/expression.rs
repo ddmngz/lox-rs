@@ -1,102 +1,152 @@
-pub mod binary;
-pub mod grouping;
-pub mod literal;
-pub mod unary;
-
 use super::lox_object::LoxObject;
 use crate::token::SmartString;
+use strum_macros::Display;
 
 pub type Result<T> = std::result::Result<T, crate::interpreter::RuntimeError>;
-pub use unary::Operator as UnaryOperator;
-pub use binary::Operator as BinaryOperator;
+use crate::interpreter::RuntimeError;
 
-
-pub enum Expression{
-    Binary(binary::Binary),
-    Grouping(grouping::Grouping),
-    Literal(literal::Literal),
-    Unary(unary::Unary),
-    Variable(SmartString)
+pub enum Expression {
+    Binary {
+        left: Box<Expression>,
+        operator: BinaryOperator,
+        right: Box<Expression>,
+    },
+    Grouping(Box<Expression>),
+    Literal(LoxObject),
+    Unary {
+        operator: UnaryOperator,
+        inner: Box<Expression>,
+    },
+    Variable(SmartString),
 }
 
-pub trait Expr {
-    fn evaluate(&self) -> Result<LoxObject>;
-    fn print(&self) -> String;
-}
-
-pub trait Visitor<T> {
-    fn accept(&self) -> T;
-}
-
-impl<E: Visitor<LoxObject>> Visitor<Result<LoxObject>> for E {
-    fn accept(&self) -> Result<LoxObject> {
-        Ok(self.accept())
+impl From<f64> for Expression {
+    fn from(float: f64) -> Self {
+        Self::Literal(LoxObject::Float(float))
     }
 }
 
-impl<E: Visitor<String> + Visitor<Result<LoxObject>>> Expr for E {
-    fn evaluate(&self) -> Result<LoxObject> {
-        <Self as Visitor<Result<LoxObject>>>::accept(self)
-    }
-    fn print(&self) -> String {
-        <Self as Visitor<String>>::accept(self)
+impl From<bool> for Expression {
+    fn from(boolean: bool) -> Self {
+        Self::Literal(LoxObject::Bool(boolean))
     }
 }
 
-impl Expression{
-    pub fn binary(left:Expression, operator:BinaryOperator, right:Expression) -> Self{
-        Self::Binary(binary::Binary::new(left,operator,right))
-    }
-
-    pub fn grouping(expression:Expression) -> Self{
-        Self::Grouping(grouping::Grouping::new(expression))
-    }
-    pub fn unary(operator:UnaryOperator, expression:Expression) -> Self{
-        Self::Unary(unary::Unary::new(operator, expression))
-    }
-
-    pub fn nil() -> Self{
-        Self::Literal(literal::Literal::new(LoxObject::Nil))
+impl From<SmartString> for Expression {
+    fn from(string: SmartString) -> Self {
+        Self::Literal(LoxObject::String(string))
     }
 }
 
-impl From<f64> for Expression{
-    fn from(source:f64) -> Self{
-        Self::Literal(literal::Literal::new(LoxObject::Float(source)))
-    }
-}
-
-impl From<bool> for Expression{
-    fn from(source:bool) -> Self{
-        Self::Literal(literal::Literal::new(LoxObject::Bool(source)))
-    }
-}
-
-impl From<SmartString> for Expression{
-    fn from(source:SmartString) -> Self{
-        Self::Literal(literal::Literal::new(LoxObject::String(source)))
-    }
-}
-
-
-// this is kind of a silly way of doing it but I started with enums then switched to trait objects
-// then switched back to enums so the sunk cost fallacy is in full swing
-impl Expr for Expression{
-    fn evaluate(&self) -> Result<LoxObject>{
-        match self{
-            Self::Binary(b) => b.evaluate(),
-            Self::Grouping(g) => g.evaluate(),
-            Self::Literal(l) => l.evaluate(),
-            Self::Unary(u) => u.evaluate(),
+impl Expression {
+    pub fn evaluate(self) -> Result<LoxObject> {
+        match self {
+            Self::Binary {
+                left,
+                operator,
+                right,
+            } => Self::handle_binary(left, operator, right),
+            Self::Grouping(inner) => inner.evaluate(),
+            Self::Literal(inner) => Ok(inner),
+            Self::Unary { operator, inner } => Self::handle_unary(operator, inner),
+            Self::Variable(name) => todo!(),
         }
     }
 
-    fn print(&self) -> String{
-        match self{
-            Self::Binary(b) => b.print(),
-            Self::Grouping(g) => g.print(),
-            Self::Literal(l) => l.print(),
-            Self::Unary(u) => u.print(),
+    pub fn nil() -> Self {
+        Self::Literal(LoxObject::Nil)
+    }
+
+    fn handle_binary(
+        left: Box<Self>,
+        operator: BinaryOperator,
+        right: Box<Self>,
+    ) -> Result<LoxObject> {
+        use BinaryOperator::{
+            BANGEQUAL, EQUALEQUAL, GREATER, GREATEREQUAL, LESS, LESSEQUAL, MINUS, PLUS, SLASH, STAR,
+        };
+        use LoxObject::Bool;
+
+        let left = left.evaluate()?;
+        let right = right.evaluate()?;
+
+        // can_compare does the typecheck so that we throw invalidOperand when comparing instead of
+        // returning false
+        let can_compare = left.partial_cmp(&right).is_some();
+        // worst line of code ever written
+
+        match operator {
+            PLUS => left + right,
+            MINUS => left - right,
+            STAR => left * right,
+            SLASH => left / right,
+            GREATER if can_compare => Ok(Bool(left > right)),
+            GREATEREQUAL if can_compare => Ok(Bool(left >= right)),
+            LESS if can_compare => Ok(Bool(left < right)),
+            LESSEQUAL if can_compare => Ok(Bool(left <= right)),
+            EQUALEQUAL if can_compare => Ok(Bool(left == right)),
+            BANGEQUAL if can_compare => Ok(Bool(left != right)),
+            _ => Err(RuntimeError::InvalidOperand),
+        }
+    }
+
+    fn handle_unary(operator: UnaryOperator, inner: Box<Self>) -> Result<LoxObject> {
+        let inner = inner.evaluate()?;
+        match operator {
+            UnaryOperator::BANG => !inner,
+            UnaryOperator::MINUS => -inner,
+        }
+    }
+}
+
+#[derive(Clone, Display, Debug)]
+pub enum UnaryOperator {
+    #[strum(serialize = "!")]
+    BANG,
+    #[strum(serialize = "-")]
+    MINUS,
+}
+
+#[derive(Clone, Display, Debug)]
+pub enum BinaryOperator {
+    #[strum(serialize = "==")]
+    EQUALEQUAL,
+    #[strum(serialize = "!=")]
+    BANGEQUAL,
+    #[strum(serialize = ">")]
+    GREATER,
+    #[strum(serialize = ">=")]
+    GREATEREQUAL,
+    #[strum(serialize = "<")]
+    LESS,
+    #[strum(serialize = "<=")]
+    LESSEQUAL,
+    #[strum(serialize = "+")]
+    PLUS,
+    #[strum(serialize = "-")]
+    MINUS,
+    #[strum(serialize = "*")]
+    STAR,
+    #[strum(serialize = "/")]
+    SLASH,
+}
+
+use crate::token::Token;
+impl BinaryOperator {
+    // trying really hard to prefer duplication to the wrong abstraction here
+    pub fn from_token(token: Token) -> Option<Self> {
+        match token {
+            Token::EQUALEQUAL => Some(Self::EQUALEQUAL),
+            Token::BANGEQUAL => Some(Self::BANGEQUAL),
+            Token::GREATER => Some(Self::GREATER),
+            Token::GREATEREQUAL => Some(Self::GREATEREQUAL),
+            Token::LESS => Some(Self::LESS),
+            Token::LESSEQUAL => Some(Self::LESSEQUAL),
+            Token::PLUS => Some(Self::PLUS),
+            Token::MINUS => Some(Self::MINUS),
+            Token::STAR => Some(Self::STAR),
+            Token::SLASH => Some(Self::SLASH),
+            _ => None,
         }
     }
 }

@@ -36,7 +36,9 @@ pub fn scan(source: Box<str>) -> Result<Vec<ScannedToken>> {
             ScanResult::NUMBER(number) => {
                 tokens.push(token(handle_number(&mut iter, number)?, line));
             }
-            ScanResult::IDENTIFIER(letter) => tokens.push(token(handle_identifier(&mut iter, letter), line)),
+            ScanResult::IDENTIFIER(letter) => {
+                tokens.push(token(handle_identifier(&mut iter, letter), line))
+            }
             ScanResult::SLASH => {
                 if let Some('/') = peek(&iter) {
                     advance_while(&mut iter, |&x| x != '\n');
@@ -46,12 +48,12 @@ pub fn scan(source: Box<str>) -> Result<Vec<ScannedToken>> {
             }
             ScanResult::STRING => {
                 let remaining = iter.as_str().len();
-                match slice_while(&mut iter, |&x| x != '"'){
-                    None => tokens.push(token(Token::STRING(SmartString::new()),line)),
+                match slice_while(&mut iter, |&x| x != '"') {
+                    None => tokens.push(token(Token::STRING(SmartString::new()), line)),
                     Some(slice) if slice.len() == remaining => {
                         ScanningError::UntermString.error(line);
                         err = Some(ScanningError::UntermString);
-                    },
+                    }
                     Some(slice) => tokens.push(string(slice, line)),
                 }
                 iter.next();
@@ -70,9 +72,7 @@ pub fn scan(source: Box<str>) -> Result<Vec<ScannedToken>> {
     }
 }
 
-
-
-fn string(source:&str, line:u32) -> ScannedToken{
+fn string(source: &str, line: u32) -> ScannedToken {
     let token = handle_string(source);
     ScannedToken::new(token, line)
 }
@@ -115,25 +115,25 @@ fn token(token: Token, line: u32) -> ScannedToken {
     ScannedToken::new(token, line)
 }
 
-fn handle_identifier(iter: &mut Chars, letter:char) -> Token {
+fn handle_identifier(iter: &mut Chars, letter: char) -> Token {
     let mut literal = SmartString::new();
     literal.push(letter);
-    if let Some(slice) = slice_while(iter, char::is_ascii_alphabetic){
+    if let Some(slice) = slice_while(iter, char::is_ascii_alphabetic) {
         literal.push_str(slice);
     }
-    if let Some(keyword) = Token::from_keyword(&literal){
+    if let Some(keyword) = Token::from_keyword(&literal) {
         keyword
-    }else{
+    } else {
         Token::IDENTIFIER(literal)
     }
 }
 
-fn handle_number(iter: &mut Chars, number:char) -> Result<Token> {
+fn handle_number(iter: &mut Chars, number: char) -> Result<Token> {
     let mut lexeme = SmartString::new();
     lexeme.push(number);
     let base = &iter.as_str();
     let mut end = advance_while(iter, char::is_ascii_digit);
-    if let Some('.') = peek(iter){
+    if let Some('.') = peek(iter) {
         iter.next();
         end += 1;
 
@@ -144,30 +144,30 @@ fn handle_number(iter: &mut Chars, number:char) -> Result<Token> {
     Ok(Token::NUMBER { lexeme, value })
 }
 
-fn advance_while<F>(iter: &mut Chars, f:F) -> usize
-where F:Fn(&char) -> bool
+fn advance_while<F>(iter: &mut Chars, f: F) -> usize
+where
+    F: Fn(&char) -> bool,
 {
     let mut amount = 0;
-    while peek(iter).is_some_and(|x| f(&x)){
-        amount +=1;
+    while peek(iter).is_some_and(|x| f(&x)) {
+        amount += 1;
         iter.next();
     }
     amount
 }
 
-
-fn slice_while<'a, F>(iter:&mut Chars<'a>, f:F) -> Option<&'a str>
-where F:Fn(&char) -> bool
+fn slice_while<'a, F>(iter: &mut Chars<'a>, f: F) -> Option<&'a str>
+where
+    F: Fn(&char) -> bool,
 {
     let start = iter.as_str();
     let end = advance_while(iter, f);
 
-
-    if end == 0{
+    if end == 0 {
         None
-    }else if end == start.len(){
+    } else if end == start.len() {
         Some(start)
-    }else{
+    } else {
         Some(&start[..end])
     }
 }
@@ -198,8 +198,8 @@ mod tests {
         }
     }
 
-    fn tokenize_float(float:f64) -> Token{
-        NUMBER{
+    fn tokenize_float(float: f64) -> Token {
+        NUMBER {
             lexeme: float.to_string().into(),
             value: float,
         }
@@ -226,10 +226,9 @@ mod tests {
     }
 
     #[test]
-    fn skip_whitespace(){
+    fn skip_whitespace() {
         assert!(scan("\t \n\n \t \r".into()).is_ok_and(|x| x.is_empty()))
     }
-
 
     #[test]
     fn scan_parens() {
@@ -240,7 +239,7 @@ mod tests {
     }
 
     #[test]
-    fn scan_integer(){
+    fn scan_integer() {
         compare_one("123456", tokenize_float(123456.0))
     }
 
@@ -249,46 +248,53 @@ mod tests {
         compare_one("123456.123456", tokenize_float(123456.123456))
     }
 
-
     #[test]
     fn scan_paren_equation() {
         compare_scan("(1+1)", vec![LEFTPAREN, one(), PLUS, one(), RIGHTPAREN])
     }
 
     #[test]
-    fn ignore_comments(){
-        compare_scan("// this is a comment should be ignored \n 123", vec![tokenize_float(123.0)]);
+    fn ignore_comments() {
+        compare_scan(
+            "// this is a comment should be ignored \n 123",
+            vec![tokenize_float(123.0)],
+        );
     }
 
     #[test]
-    fn identifier(){
+    fn identifier() {
         compare_one("ababa", IDENTIFIER("ababa".into()))
     }
 
     #[test]
-    fn comparison(){
+    fn comparison() {
         compare_one("<", LESS)
     }
 
     #[test]
-    fn comparison_equal(){
+    fn comparison_equal() {
         compare_one("<=", LESSEQUAL)
     }
 
     #[test]
-    fn unterm_string(){
-        assert!(scan("\"unterminated moment".into()).is_err_and(|e| e == ScanningError::UntermString))
+    fn unterm_string() {
+        assert!(
+            scan("\"unterminated moment".into()).is_err_and(|e| e == ScanningError::UntermString)
+        )
     }
 
     #[test]
-    fn unterm_statement(){
-        compare_scan("print \"hello world\";", vec![PRINT, STRING("hello world".into()), SEMICOLON]);
+    fn unterm_statement() {
+        compare_scan(
+            "print \"hello world\";",
+            vec![PRINT, STRING("hello world".into()), SEMICOLON],
+        );
     }
 
-    fn compare_one(string:&str, target: Token) {
-        let string:Box<str> = string.into();
+    fn compare_one(string: &str, target: Token) {
+        let string: Box<str> = string.into();
         let token = scan(string).unwrap()[0].type_.clone();
-        assert_eq!(token,target)
+        assert_eq!(token, target)
     }
 
     fn compare_scan(string: &str, goal: Vec<Token>) {

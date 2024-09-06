@@ -4,5 +4,4 @@ use thiserror::Error;
 pub enum RuntimeError {
     #[error("Operator must be a number.")]
     InvalidOperand,
-
 }

@@ -3,11 +3,7 @@ pub mod error;
 pub use error::ParsingError;
 //use crate::scanner::{TokenType::{*,self}, Token};
 use crate::scanner::ScannedToken;
-use crate::syntax_trees::expression::{
-    binary::Operator as BinaryOperator,
-    unary::Operator as UnaryOperator, 
-    Expression,
-};
+use crate::syntax_trees::expression::{BinaryOperator, Expression, UnaryOperator};
 use crate::syntax_trees::statement::Statement;
 use crate::token::Token;
 use std::iter::Peekable;
@@ -27,31 +23,33 @@ impl Parser {
     pub fn parse(&mut self) -> Result<Vec<Statement>> {
         let mut statements = Vec::new();
         while let Some(token) = self.iter.peek() {
-            let statement = match token.type_{
+            let statement = match token.type_ {
                 Token::VAR => self.varDeclaration(),
                 _ => self.statement(),
             };
-            if let Err(e) = statement{
+            if let Err(e) = statement {
                 self._synchronize();
-                return Err(e)
+                return Err(e);
             }
             statements.push(statement.unwrap())
-            //statements.push(self.declaration()?);        
+            //statements.push(self.declaration()?);
         }
 
         Ok(statements)
     }
 
-
-    fn statement(&mut self) -> Result<Statement>{
-
-        todo!() 
+    fn varDeclaration(&mut self) -> Result<Statement> {
+        todo!()
     }
-/*match token.type_ {
-                Token::PRINT => self.print_statement()?,
-                _ => self.expression_statement()?,
-            });
-*/
+
+    fn statement(&mut self) -> Result<Statement> {
+        todo!()
+    }
+    /*match token.type_ {
+                    Token::PRINT => self.print_statement()?,
+                    _ => self.expression_statement()?,
+                });
+    */
 
     fn print_statement(&mut self) -> Result<Statement> {
         let value = self.expression()?;
@@ -75,7 +73,7 @@ impl Parser {
         self.equality()
     }
 
-    fn equality(&mut self) -> Result<Expression>{
+    fn equality(&mut self) -> Result<Expression> {
         let mut types = [Token::BANGEQUAL, Token::EQUALEQUAL];
         self.recursive_descend(Self::comparison, &mut types)
     }
@@ -111,7 +109,10 @@ impl Parser {
                 UnaryOperator::MINUS
             };
             let right = self.unary()?;
-            return Ok(Expression::unary(operator, right));
+            return Ok(Expression::Unary {
+                operator,
+                inner: Box::new(right),
+            });
         }
         self.primary()
     }
@@ -166,7 +167,13 @@ impl Parser {
         while let Some(token) = self.iter.next_if(|x| types.contains(&x.type_)) {
             let operator = BinaryOperator::from_token(token.type_).unwrap();
             let right = f(self)?;
-            expr = Expression::binary(expr, operator, right);
+            let left = Box::new(expr);
+            let right = Box::new(right);
+            expr = Expression::Binary {
+                left,
+                operator,
+                right,
+            };
         }
         Ok(expr)
     }
@@ -178,7 +185,7 @@ impl Parser {
             .next_if(|x| x.type_ == Token::RIGHTPAREN)
             .is_some()
         {
-            Ok(Expression::grouping(expr))
+            Ok(Expression::Grouping(Box::new(expr)))
         } else {
             Err(ParsingError::UntermParen)
         }

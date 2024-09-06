@@ -1,5 +1,4 @@
 mod error;
-use crate::syntax_trees::expression::Expr;
 use crate::syntax_trees::statement::Statement;
 pub use error::RuntimeError;
 
@@ -25,5 +24,6 @@ fn execute(statement: Statement) -> Result<()> {
             println!("{}", statement.evaluate()?);
             Ok(())
         }
+        Statement::Var { name, initializer } => todo!(),
     }
 }

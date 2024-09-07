@@ -3,7 +3,6 @@ use crate::token::SmartString;
 use strum_macros::Display;
 
 pub type Result<T> = std::result::Result<T, crate::interpreter::RuntimeError>;
-use crate::interpreter::RuntimeError;
 
 pub enum Expression {
     Binary {
@@ -38,62 +37,13 @@ impl From<SmartString> for Expression {
     }
 }
 
-// TODO: move evaluate to interpreter so we can access state
 impl Expression {
-    pub fn evaluate(self) -> Result<LoxObject> {
-        match self {
-            Self::Binary {
-                left,
-                operator,
-                right,
-            } => Self::handle_binary(*left, operator, *right),
-            Self::Grouping(inner) => inner.evaluate(),
-            Self::Literal(inner) => Ok(inner),
-            Self::Unary { operator, inner } => Self::handle_unary(operator, *inner),
-            Self::Variable(name) => Ok(LoxObject::VarName(name)),
-        }
-    }
+
 
     pub fn nil() -> Self {
         Self::Literal(LoxObject::Nil)
     }
 
-    fn handle_binary(left: Self, operator: BinaryOperator, right: Self) -> Result<LoxObject> {
-        use BinaryOperator::{
-            BANGEQUAL, EQUALEQUAL, GREATER, GREATEREQUAL, LESS, LESSEQUAL, MINUS, PLUS, SLASH, STAR,
-        };
-        use LoxObject::Bool;
-
-        let left = left.evaluate()?;
-        let right = right.evaluate()?;
-
-        // can_compare does the typecheck so that we throw invalidOperand when comparing instead of
-        // returning false
-        let can_compare = left.partial_cmp(&right).is_some();
-        // worst line of code ever written
-
-        match operator {
-            PLUS => left + right,
-            MINUS => left - right,
-            STAR => left * right,
-            SLASH => left / right,
-            GREATER if can_compare => Ok(Bool(left > right)),
-            GREATEREQUAL if can_compare => Ok(Bool(left >= right)),
-            LESS if can_compare => Ok(Bool(left < right)),
-            LESSEQUAL if can_compare => Ok(Bool(left <= right)),
-            EQUALEQUAL if can_compare => Ok(Bool(left == right)),
-            BANGEQUAL if can_compare => Ok(Bool(left != right)),
-            _ => Err(RuntimeError::InvalidOperand),
-        }
-    }
-
-    fn handle_unary(operator: UnaryOperator, inner: Self) -> Result<LoxObject> {
-        let inner = inner.evaluate()?;
-        match operator {
-            UnaryOperator::BANG => !inner,
-            UnaryOperator::MINUS => -inner,
-        }
-    }
 }
 
 #[derive(Clone, Display, Debug)]

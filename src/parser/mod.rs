@@ -6,6 +6,7 @@ use crate::scanner::ScannedToken;
 use crate::syntax_trees::expression::{BinaryOperator, Expression, UnaryOperator};
 use crate::syntax_trees::statement::Statement;
 use crate::token::Token;
+use crate::token::TokenDiscriminant;
 use std::iter::Peekable;
 
 pub struct Parser {
@@ -22,51 +23,84 @@ impl Parser {
 
     pub fn parse(&mut self) -> Result<Vec<Statement>> {
         let mut statements = Vec::new();
-        while let Some(token) = self.iter.peek() {
-            let statement = match token.type_ {
-                Token::VAR => self.varDeclaration(),
-                _ => self.statement(),
-            };
-            if let Err(e) = statement {
-                self._synchronize();
-                return Err(e);
+        let mut last_error = None;
+        while self.iter.peek().is_some() {
+            // discriminant so we can cheaply pass it around
+            match self.declaration() {
+                Ok(statement) => statements.push(statement),
+                Err(e) => {
+                    last_error = Some(e);
+                }
             }
-            statements.push(statement.unwrap())
-            //statements.push(self.declaration()?);
         }
 
-        Ok(statements)
+        match last_error {
+            Some(e) => Err(e),
+            None => Ok(statements),
+        }
     }
 
-    fn varDeclaration(&mut self) -> Result<Statement> {
-        todo!()
+    fn declaration(&mut self) -> Result<Statement> {
+        let result = if self.iter.next_if(|x| x.type_ == Token::VAR).is_some(){
+            self.var_declaration()
+        }else{
+            self.statement()
+        };
+        if result.is_err() {
+            self._synchronize();
+        }
+        result
+    }
+
+    fn consume(&mut self, token: TokenDiscriminant) -> Option<ScannedToken> {
+        self.iter
+            .next_if(|x| TokenDiscriminant::from(&x.type_) == token)
+    }
+
+    fn var_declaration(&mut self) -> Result<Statement> {
+        let Some(ScannedToken {
+            type_: Token::IDENTIFIER(name),
+            ..
+        }) = self.consume(TokenDiscriminant::IDENTIFIER)
+        else {
+            self.error(ParsingError::NoIdentifier);
+            return Err(ParsingError::NoIdentifier);
+        };
+
+        let initializer = if self.iter.next_if(|x| x.type_ == Token::EQUAL).is_some() {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+
+        self.semicolon().map(|()| Statement::Var{name, initializer})
+    }
+
+    fn semicolon(&mut self) -> Result<()>{
+        if self.iter.next_if(|x| x.type_ == Token::SEMICOLON).is_some() {
+            Ok(())
+        } else {
+            self.error(ParsingError::NoSemi);
+            Err(ParsingError::NoSemi)
+        }
     }
 
     fn statement(&mut self) -> Result<Statement> {
-        todo!()
+        if self.iter.next_if(|x| x.type_ == Token::PRINT).is_some(){
+            self.print_statement()
+        }else{
+            self.expression_statement()
+        }
     }
-    /*match token.type_ {
-                    Token::PRINT => self.print_statement()?,
-                    _ => self.expression_statement()?,
-                });
-    */
 
     fn print_statement(&mut self) -> Result<Statement> {
         let value = self.expression()?;
-        if self.iter.next_if(|x| x.type_ == Token::SEMICOLON).is_some() {
-            Ok(Statement::Print(value))
-        } else {
-            Err(ParsingError::NoSemi)
-        }
+        self.semicolon().map(|()| Statement::Print(value))
     }
 
     fn expression_statement(&mut self) -> Result<Statement> {
         let value = self.expression()?;
-        if self.iter.next_if(|x| x.type_ == Token::SEMICOLON).is_some() {
-            Ok(Statement::Expression(value))
-        } else {
-            Err(ParsingError::NoSemi)
-        }
+        self.semicolon().map(|()| Statement::Expression(value))
     }
 
     fn expression(&mut self) -> Result<Expression> {
@@ -118,43 +152,23 @@ impl Parser {
     }
 
     fn primary(&mut self) -> Result<Expression> {
-        if self.iter.peek().is_none() {
-            return Err(ParsingError::NoExpr);
-        }
-
-        let Some(ScannedToken { type_: token, .. }) = self.iter.next_if(|x| is_terminal(&x.type_))
-        else {
-            return Err(ParsingError::NoExpr);
-        };
-        match token {
-            Token::FALSE => Ok(false.into()),
-            Token::TRUE => Ok(true.into()),
-            Token::NIL => Ok(Expression::nil()),
-            Token::NUMBER {
+        match self.iter.next().map(|x| x.type_){
+            Some(Token::FALSE) => Ok(false.into()),
+            Some(Token::TRUE) => Ok(true.into()),
+            Some(Token::NIL) => Ok(Expression::nil()),
+            Some(Token::NUMBER {
                 lexeme: _,
                 value: num,
-            } => Ok(num.into()),
-            Token::STRING(str_) => Ok(str_.into()),
-            Token::LEFTPAREN => self.handle_paren(),
-            _ => Err(ParsingError::NoExpr),
+            }) => Ok(num.into()),
+            Some(Token::STRING(str_)) => Ok(str_.into()),
+            Some(Token::LEFTPAREN) => self.handle_paren(),
+            Some(Token::IDENTIFIER(name)) => Ok(Expression::Variable(name)),
+            _ => Err(self.error(ParsingError::NoExpr)),
         }
     }
 }
 
-fn is_terminal(token: &Token) -> bool {
-    matches!(
-        token,
-        Token::FALSE
-            | Token::TRUE
-            | Token::NIL
-            | Token::NUMBER {
-                lexeme: _,
-                value: _
-            }
-            | Token::STRING(_)
-            | Token::LEFTPAREN
-    )
-}
+
 
 impl Parser {
     fn recursive_descend(
@@ -187,8 +201,17 @@ impl Parser {
         {
             Ok(Expression::Grouping(Box::new(expr)))
         } else {
-            Err(ParsingError::UntermParen)
+            Err(self.error(ParsingError::UntermParen))
         }
+    }
+
+    fn error(&mut self, error:ParsingError) -> ParsingError{
+        if let Some(ScannedToken{line, ..}) = self.iter.peek(){
+            println!("Error on line {}: {}", line, error)
+        }else{
+            println!("Error at end of file: {}", error)
+        }
+        error
     }
 
     fn _synchronize(&mut self) {

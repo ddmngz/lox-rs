@@ -38,6 +38,7 @@ impl From<SmartString> for Expression {
     }
 }
 
+// TODO: move evaluate to interpreter so we can access state
 impl Expression {
     pub fn evaluate(self) -> Result<LoxObject> {
         match self {
@@ -45,11 +46,11 @@ impl Expression {
                 left,
                 operator,
                 right,
-            } => Self::handle_binary(left, operator, right),
+            } => Self::handle_binary(*left, operator, *right),
             Self::Grouping(inner) => inner.evaluate(),
             Self::Literal(inner) => Ok(inner),
-            Self::Unary { operator, inner } => Self::handle_unary(operator, inner),
-            Self::Variable(name) => todo!(),
+            Self::Unary { operator, inner } => Self::handle_unary(operator, *inner),
+            Self::Variable(name) => Ok(LoxObject::VarName(name)),
         }
     }
 
@@ -57,11 +58,7 @@ impl Expression {
         Self::Literal(LoxObject::Nil)
     }
 
-    fn handle_binary(
-        left: Box<Self>,
-        operator: BinaryOperator,
-        right: Box<Self>,
-    ) -> Result<LoxObject> {
+    fn handle_binary(left: Self, operator: BinaryOperator, right: Self) -> Result<LoxObject> {
         use BinaryOperator::{
             BANGEQUAL, EQUALEQUAL, GREATER, GREATEREQUAL, LESS, LESSEQUAL, MINUS, PLUS, SLASH, STAR,
         };
@@ -90,7 +87,7 @@ impl Expression {
         }
     }
 
-    fn handle_unary(operator: UnaryOperator, inner: Box<Self>) -> Result<LoxObject> {
+    fn handle_unary(operator: UnaryOperator, inner: Self) -> Result<LoxObject> {
         let inner = inner.evaluate()?;
         match operator {
             UnaryOperator::BANG => !inner,

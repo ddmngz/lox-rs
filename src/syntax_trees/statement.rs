@@ -1,10 +1,10 @@
 use super::expression::Expression;
-use crate::token::Token;
+use crate::token::SmartString;
 pub enum Statement {
     Expression(Expression),
     Print(Expression),
     Var {
-        name: Token,
+        name: SmartString,
         initializer: Option<Expression>,
     },
 }

@@ -42,8 +42,11 @@ fn run(code: Box<str>) -> Result<(), Error> {
         return Err(Error::NotAscii);
     };
     let tokens = scanner::scan(code)?;
+
+
     let mut parser = Parser::new(tokens);
     let statements = parser.parse()?;
+
 
     match interpreter::interpret(statements) {
         Ok(()) => Ok(()),

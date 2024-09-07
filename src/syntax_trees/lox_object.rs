@@ -15,6 +15,8 @@ pub enum LoxObject {
     Bool(bool),
     #[strum(serialize = "nil")]
     Nil,
+    #[strum(serialize = "{0}")]
+    VarName(SmartString),
 }
 
 // logic for evaluating is handled through trait implementations, returning Error for invalid type

@@ -1,8 +1,10 @@
 use std::fmt;
+use strum_macros::EnumDiscriminants;
 pub type SmartString = smartstring::SmartString<smartstring::Compact>;
 /// Every Possible Type of Token
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, EnumDiscriminants)]
+#[strum_discriminants(name(TokenDiscriminant))]
 pub enum Token {
     LEFTPAREN,
     RIGHTPAREN,
@@ -57,12 +59,10 @@ pub enum Token {
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::STRING(yarn) => write!(f, "STRING(\"{}\")", yarn.to_string()),
-            Self::NUMBER { value, lexeme } => write!(
-                f,
-                "NUMBER(value = {value}, literal = {})",
-                lexeme.to_string()
-            ),
+            Self::STRING(yarn) => write!(f, "STRING(\"{}\")", yarn),
+            Self::NUMBER { value, lexeme } => {
+                write!(f, "NUMBER(value = {value}, literal = {})", lexeme,)
+            }
             _ => write!(f, "{:?}", &self),
         }
     }
@@ -76,13 +76,13 @@ pub enum Operator {
     GREATER,
 }
 
-impl Into<Token> for Operator {
-    fn into(self) -> Token {
-        match self {
-            Self::BANG => Token::BANG,
-            Self::EQUAL => Token::EQUAL,
-            Self::LESS => Token::LESS,
-            Self::GREATER => Token::GREATER,
+impl From<Operator> for Token {
+    fn from(operator: Operator) -> Self {
+        match operator {
+            Operator::BANG => Self::BANG,
+            Operator::EQUAL => Self::EQUAL,
+            Operator::LESS => Self::LESS,
+            Operator::GREATER => Self::GREATER,
         }
     }
 }

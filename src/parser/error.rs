@@ -12,4 +12,6 @@ pub enum ParsingError {
     NoVarName,
     #[error("Invalid.")]
     Invalid,
+    #[error("Expected Identifier..")]
+    NoIdentifier,
 }

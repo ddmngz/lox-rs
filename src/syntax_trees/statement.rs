@@ -7,4 +7,5 @@ pub enum Statement {
         name: SmartString,
         initializer: Option<Expression>,
     },
+    Block(Vec<Statement>)
 }

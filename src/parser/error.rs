@@ -16,6 +16,9 @@ pub enum ParsingError {
     NoIdentifier,
     #[error("Invalid Assignment Target.")]
     InvalidAssignment,
+
+    #[error("Expected '}}' after Block.")]
+    UntermBrace,
  
 
 }

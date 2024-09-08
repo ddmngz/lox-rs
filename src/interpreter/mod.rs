@@ -1,26 +1,25 @@
 mod error;
+mod environment;
+
 use crate::syntax_trees::statement::Statement;
 pub use error::RuntimeError;
 
 use crate::syntax_trees::lox_object::LoxObject;
-use crate::token::SmartString;
-use std::collections::HashMap;
 
 use crate::syntax_trees::expression::Expression;
 use crate::syntax_trees::expression::BinaryOperator;
 use crate::syntax_trees::expression::UnaryOperator;
+use environment::Environment;
 
 
 #[derive(Default)]
 pub struct Interpreter {
-    environment: HashMap<SmartString, Option<LoxObject>>,
+    environment: Environment,
 }
 pub type Result<T> = std::result::Result<T, RuntimeError>;
 
 pub fn interpret(statements: Vec<Statement>) -> Result<()> {
-    let mut _interpreter = Interpreter {
-        environment: HashMap::new(),
-    };
+    let mut _interpreter = Interpreter::default();
     for statement_ in statements {
         _interpreter.execute(statement_)?;
     }
@@ -29,7 +28,6 @@ pub fn interpret(statements: Vec<Statement>) -> Result<()> {
 }
 
 
-use std::collections::hash_map::Entry;
 impl Interpreter {
 
     pub fn interpret(&mut self, statements:Vec<Statement>) -> Result<()>{
@@ -56,29 +54,21 @@ impl Interpreter {
                     None
                 };
 
-                self.define(name, initial_value);
+                self.environment.define(name, initial_value);
                 Ok(())
             }
+            Statement::Block(statements) => self.execute_block(statements),
         }
     }
 
-    fn get(&self, key: &str) -> Result<&Option<LoxObject>> {
-        self.environment
-            .get(key)
-            .ok_or_else(|| RuntimeError::Undefined(SmartString::from(key)))
-    }
-
-    fn define(&mut self, key: SmartString, value: Option<LoxObject>) {
-        self.environment.insert(key, value);
-    }
-
-    fn assign(&mut self, key: SmartString, value: LoxObject) -> Result<()>{
-        if let Entry::Occupied(mut variable) = self.environment.entry(key.clone()){
-            *variable.get_mut() = Some(value);
-                Ok(())
-        }else{
-            Err(RuntimeError::Undefined(key))
+    fn execute_block(&mut self, statements:Vec<Statement>) -> Result<()>{
+        let outer = self.environment.clone();
+        self.environment = Environment::new(outer.clone());
+        for statement in statements{
+            self.execute(statement)?;
         }
+        self.environment = outer;
+        Ok(())
     }
 
 
@@ -95,14 +85,14 @@ impl Interpreter {
             Expression::Variable(name) => self.handle_variable(&name),
             Expression::Assign {name, value} => {
                 let value = self.evaluate(*value)?;
-                self.assign(name, value.clone())?;
+                self.environment.assign(name, value.clone())?;
                 Ok(value)
             },
         }
     }
 
     fn handle_variable(&self, key:&str) -> Result<LoxObject>{
-        match self.get(key){
+        match self.environment.get(key){
             Ok(None) => Ok(LoxObject::Nil),
             Ok(Some(object)) => Ok(object.clone()),
             Err(error) => Err(error),

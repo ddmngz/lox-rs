@@ -87,8 +87,24 @@ impl Parser {
     fn statement(&mut self) -> Result<Statement> {
         if self.iter.next_if(|x| x.type_ == Token::PRINT).is_some(){
             self.print_statement()
-        }else{
+        }else if self.iter.next_if(|x| x.type_ == Token::LEFTBRACE).is_some(){
+            Ok(Statement::Block(self.block()?))
+        }
+        else{
             self.expression_statement()
+        }
+    }
+
+    fn block(&mut self) -> Result<Vec<Statement>>{
+        let mut statements = Vec::new();
+        while self.iter.peek().is_some_and(|x| x.type_ != Token::RIGHTBRACE){
+            statements.push(self.declaration()?)
+        }
+        
+        if self.iter.next_if(|x| x.type_ == Token::RIGHTBRACE).is_some(){
+            Ok(statements)
+        }else{
+            Err(ParsingError::UntermBrace)
         }
     }
 

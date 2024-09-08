@@ -4,6 +4,7 @@ use strum_macros::Display;
 
 pub type Result<T> = std::result::Result<T, crate::interpreter::RuntimeError>;
 
+#[derive(Clone)]
 pub enum Expression {
     Binary {
         left: Box<Expression>,
@@ -17,6 +18,10 @@ pub enum Expression {
         inner: Box<Expression>,
     },
     Variable(SmartString),
+    Assign{
+        name:SmartString,
+        value: Box<Expression>,
+    }
 }
 
 impl From<f64> for Expression {

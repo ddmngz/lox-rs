@@ -11,7 +11,7 @@ use crate::syntax_trees::expression::BinaryOperator;
 use crate::syntax_trees::expression::UnaryOperator;
 
 
-
+#[derive(Default)]
 pub struct Interpreter {
     environment: HashMap<SmartString, Option<LoxObject>>,
 }
@@ -28,7 +28,17 @@ pub fn interpret(statements: Vec<Statement>) -> Result<()> {
     Ok(())
 }
 
+
+use std::collections::hash_map::Entry;
 impl Interpreter {
+
+    pub fn interpret(&mut self, statements:Vec<Statement>) -> Result<()>{
+        for statement_ in statements {
+            self.execute(statement_)?;
+        }
+        Ok(())
+    }
+
     fn execute(&mut self, statement: Statement) -> Result<()> {
         match statement {
             Statement::Expression(statement) => {
@@ -62,8 +72,17 @@ impl Interpreter {
         self.environment.insert(key, value);
     }
 
+    fn assign(&mut self, key: SmartString, value: LoxObject) -> Result<()>{
+        if let Entry::Occupied(mut variable) = self.environment.entry(key.clone()){
+            *variable.get_mut() = Some(value);
+                Ok(())
+        }else{
+            Err(RuntimeError::Undefined(key))
+        }
+    }
 
-    pub fn evaluate(&self, expression:Expression) -> Result<LoxObject> {
+
+    pub fn evaluate(&mut self, expression:Expression) -> Result<LoxObject> {
         match expression {
             Expression::Binary {
                 left,
@@ -74,6 +93,11 @@ impl Interpreter {
             Expression::Literal(inner) => Ok(inner),
             Expression::Unary { operator, inner } => self.handle_unary(operator, *inner),
             Expression::Variable(name) => self.handle_variable(&name),
+            Expression::Assign {name, value} => {
+                let value = self.evaluate(*value)?;
+                self.assign(name, value.clone())?;
+                Ok(value)
+            },
         }
     }
 
@@ -85,7 +109,7 @@ impl Interpreter {
         }
     }
 
-    fn handle_binary(&self, left: Expression, operator: BinaryOperator, right: Expression) -> Result<LoxObject> {
+    fn handle_binary(&mut self, left: Expression, operator: BinaryOperator, right: Expression) -> Result<LoxObject> {
         use BinaryOperator::{
             BANGEQUAL, EQUALEQUAL, GREATER, GREATEREQUAL, LESS, LESSEQUAL, MINUS, PLUS, SLASH, STAR,
         };
@@ -114,7 +138,7 @@ impl Interpreter {
         }
     }
 
-    fn handle_unary(&self, operator: UnaryOperator, inner: Expression) -> Result<LoxObject> {
+    fn handle_unary(&mut self, operator: UnaryOperator, inner: Expression) -> Result<LoxObject> {
         let inner = self.evaluate(inner)?;
         match operator {
             UnaryOperator::BANG => !inner,

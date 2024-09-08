@@ -10,18 +10,21 @@ pub mod token;
 
 use error::Error;
 use parser::Parser;
+use interpreter::Interpreter;
 
 pub fn run_file(file_name: &str) -> Result<(), Error> {
     let mut file = File::open(file_name).unwrap();
     let mut contents: String = String::new();
     file.read_to_string(&mut contents).unwrap();
     let contents = contents.into_boxed_str();
-    run(contents)
+    let mut environment = Interpreter::default();
+    run(contents, &mut environment)
 }
 
 pub fn run_prompt() -> Result<(), Error> {
     let mut workhorse = String::new();
     let mut contents: Box<str>;
+    let mut environment = Interpreter::default();
     loop {
         print!("> ");
         stdout().flush()?;
@@ -29,7 +32,7 @@ pub fn run_prompt() -> Result<(), Error> {
             return Ok(());
         }
         contents = workhorse.clone().into();
-        if let Err(e) = run(contents) {
+        if let Err(e) = run(contents, &mut environment) {
             println!("{}", e);
             stdout().flush()?;
         }
@@ -37,7 +40,7 @@ pub fn run_prompt() -> Result<(), Error> {
     }
 }
 
-fn run(code: Box<str>) -> Result<(), Error> {
+fn run(code: Box<str>, interpreter:&mut Interpreter) -> Result<(), Error> {
     if !validate(&code) {
         return Err(Error::NotAscii);
     };
@@ -48,7 +51,7 @@ fn run(code: Box<str>) -> Result<(), Error> {
     let statements = parser.parse()?;
 
 
-    match interpreter::interpret(statements) {
+    match interpreter.interpret(statements) {
         Ok(()) => Ok(()),
         Err(e) => Err(Error::RuntimeError(e)),
     }

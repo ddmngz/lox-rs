@@ -12,6 +12,10 @@ pub enum ParsingError {
     NoVarName,
     #[error("Invalid.")]
     Invalid,
-    #[error("Expected Identifier..")]
+    #[error("Expected Identifier.")]
     NoIdentifier,
+    #[error("Invalid Assignment Target.")]
+    InvalidAssignment,
+ 
+
 }

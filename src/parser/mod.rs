@@ -63,7 +63,7 @@ impl Parser {
             ..
         }) = self.consume(TokenDiscriminant::IDENTIFIER)
         else {
-            self.error(ParsingError::NoIdentifier);
+            Self::error(ParsingError::NoIdentifier, self.iter.peek().map(|x| x.line));
             return Err(ParsingError::NoIdentifier);
         };
 
@@ -80,8 +80,7 @@ impl Parser {
         if self.iter.next_if(|x| x.type_ == Token::SEMICOLON).is_some() {
             Ok(())
         } else {
-            self.error(ParsingError::NoSemi);
-            Err(ParsingError::NoSemi)
+            Err(Self::error(ParsingError::NoSemi, self.iter.peek().map(|x| x.line)))
         }
     }
 
@@ -104,7 +103,23 @@ impl Parser {
     }
 
     fn expression(&mut self) -> Result<Expression> {
-        self.equality()
+        self.assignment()
+    }
+
+    fn assignment(&mut self) -> Result<Expression>{
+        let expression = self.equality()?;
+        if let Some(ScannedToken{line,..}) = self.iter.next_if(|x| x.type_ == Token::EQUAL){
+            let value = Box::new(self.assignment()?);
+            if let Expression::Variable(name) = expression {
+                return Ok(Expression::Assign{
+                    name,
+                    value
+                })
+            }else{
+                return Err(Self::error(ParsingError::InvalidAssignment, Some(line)))
+            }
+        }
+        Ok(expression)
     }
 
     fn equality(&mut self) -> Result<Expression> {
@@ -152,18 +167,22 @@ impl Parser {
     }
 
     fn primary(&mut self) -> Result<Expression> {
-        match self.iter.next().map(|x| x.type_){
-            Some(Token::FALSE) => Ok(false.into()),
-            Some(Token::TRUE) => Ok(true.into()),
-            Some(Token::NIL) => Ok(Expression::nil()),
-            Some(Token::NUMBER {
+        let Some(ScannedToken{type_:token, line}) = self.iter.next()else{
+            return Err(Self::error(ParsingError::NoExpr, None))
+        };
+
+        match token{
+            Token::FALSE => Ok(false.into()),
+            Token::TRUE => Ok(true.into()),
+            Token::NIL => Ok(Expression::nil()),
+            Token::NUMBER {
                 lexeme: _,
                 value: num,
-            }) => Ok(num.into()),
-            Some(Token::STRING(str_)) => Ok(str_.into()),
-            Some(Token::LEFTPAREN) => self.handle_paren(),
-            Some(Token::IDENTIFIER(name)) => Ok(Expression::Variable(name)),
-            _ => Err(self.error(ParsingError::NoExpr)),
+            } => Ok(num.into()),
+            Token::STRING(str_) => Ok(str_.into()),
+            Token::LEFTPAREN => self.handle_paren(),
+            Token::IDENTIFIER(name) => Ok(Expression::Variable(name)),
+            _ => Err(Self::error(ParsingError::NoExpr, Some(line))),
         }
     }
 }
@@ -201,16 +220,15 @@ impl Parser {
         {
             Ok(Expression::Grouping(Box::new(expr)))
         } else {
-            Err(self.error(ParsingError::UntermParen))
+            Err(Self::error(ParsingError::UntermParen, self.iter.peek().map(|x| x.line)))
         }
     }
 
-    fn error(&mut self, error:ParsingError) -> ParsingError{
-        if let Some(ScannedToken{line, ..}) = self.iter.peek(){
-            println!("Error on line {}: {}", line, error)
-        }else{
-            println!("Error at end of file: {}", error)
-        }
+    fn error(error:ParsingError, line: Option<u32>) -> ParsingError{
+        match line{
+            Some(line) => {println!("Error on line {}: {}", line, error)},
+            None => {println!("Error at end of file: {}",error)}
+        };
         error
     }
 

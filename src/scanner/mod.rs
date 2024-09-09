@@ -141,7 +141,7 @@ fn handle_number(iter: &mut Chars, number: char) -> Result<Token> {
     }
     lexeme.push_str(&base[..end]);
     let value: f64 = lexeme.parse()?;
-    Ok(Token::NUMBER { lexeme, value })
+    Ok(Token::NUMBER (value))
 }
 
 fn advance_while<F>(iter: &mut Chars, f: F) -> usize
@@ -191,23 +191,11 @@ mod tests {
     use super::*;
     use Token::*;
 
-    fn one() -> Token {
-        NUMBER {
-            lexeme: "1".into(),
-            value: 1.0,
-        }
-    }
 
-    fn tokenize_float(float: f64) -> Token {
-        NUMBER {
-            lexeme: float.to_string().into(),
-            value: float,
-        }
-    }
 
     #[test]
     fn scan_equation() {
-        compare_scan("1+1", vec![one(), PLUS, one()])
+        compare_scan("1+1", vec![NUMBER(1.0), PLUS, NUMBER(1.0)])
     }
 
     #[test]
@@ -240,24 +228,24 @@ mod tests {
 
     #[test]
     fn scan_integer() {
-        compare_one("123456", tokenize_float(123456.0))
+        compare_one("123456", NUMBER(123456.0))
     }
 
     #[test]
     fn scan_decimal() {
-        compare_one("123456.123456", tokenize_float(123456.123456))
+        compare_one("123456.123456", NUMBER(123456.123456))
     }
 
     #[test]
     fn scan_paren_equation() {
-        compare_scan("(1+1)", vec![LEFTPAREN, one(), PLUS, one(), RIGHTPAREN])
+        compare_scan("(1+1)", vec![LEFTPAREN, NUMBER(1.0), PLUS, NUMBER(1.0), RIGHTPAREN])
     }
 
     #[test]
     fn ignore_comments() {
         compare_scan(
             "// this is a comment should be ignored \n 123",
-            vec![tokenize_float(123.0)],
+            vec![NUMBER(123.0)],
         );
     }
 

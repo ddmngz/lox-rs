@@ -191,11 +191,8 @@ impl Parser {
             Token::FALSE => Ok(false.into()),
             Token::TRUE => Ok(true.into()),
             Token::NIL => Ok(Expression::nil()),
-            Token::NUMBER {
-                lexeme: _,
-                value: num,
-            } => Ok(num.into()),
-            Token::STRING(str_) => Ok(str_.into()),
+            Token::NUMBER (num) => Ok(num.into()),
+            Token::STRING(string) => Ok(string.into()),
             Token::LEFTPAREN => self.handle_paren(),
             Token::IDENTIFIER(name) => Ok(Expression::Variable(name)),
             _ => Err(Self::error(ParsingError::NoExpr, Some(line))),

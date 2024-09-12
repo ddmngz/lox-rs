@@ -1,16 +1,15 @@
-mod error;
 mod environment;
+mod error;
 
 use crate::syntax_trees::statement::Statement;
 pub use error::RuntimeError;
 
 use crate::syntax_trees::lox_object::LoxObject;
 
-use crate::syntax_trees::expression::Expression;
 use crate::syntax_trees::expression::BinaryOperator;
+use crate::syntax_trees::expression::Expression;
 use crate::syntax_trees::expression::UnaryOperator;
 use environment::Environment;
-
 
 #[derive(Default)]
 pub struct Interpreter {
@@ -27,10 +26,8 @@ pub fn interpret(statements: Vec<Statement>) -> Result<()> {
     Ok(())
 }
 
-
 impl Interpreter {
-
-    pub fn interpret(&mut self, statements:Vec<Statement>) -> Result<()>{
+    pub fn interpret(&mut self, statements: Vec<Statement>) -> Result<()> {
         for statement_ in statements {
             self.execute(statement_)?;
         }
@@ -61,18 +58,17 @@ impl Interpreter {
         }
     }
 
-    fn execute_block(&mut self, statements:Vec<Statement>) -> Result<()>{
+    fn execute_block(&mut self, statements: Vec<Statement>) -> Result<()> {
         let outer = self.environment.clone();
         self.environment = Environment::new(outer.clone());
-        for statement in statements{
+        for statement in statements {
             self.execute(statement)?;
         }
         self.environment = outer;
         Ok(())
     }
 
-
-    pub fn evaluate(&mut self, expression:Expression) -> Result<LoxObject> {
+    pub fn evaluate(&mut self, expression: Expression) -> Result<LoxObject> {
         match expression {
             Expression::Binary {
                 left,
@@ -83,23 +79,28 @@ impl Interpreter {
             Expression::Literal(inner) => Ok(inner),
             Expression::Unary { operator, inner } => self.handle_unary(operator, *inner),
             Expression::Variable(name) => self.handle_variable(&name),
-            Expression::Assign {name, value} => {
+            Expression::Assign { name, value } => {
                 let value = self.evaluate(*value)?;
                 self.environment.assign(name, value.clone())?;
                 Ok(value)
-            },
+            }
         }
     }
 
-    fn handle_variable(&self, key:&str) -> Result<LoxObject>{
-        match self.environment.get(key){
+    fn handle_variable(&self, key: &str) -> Result<LoxObject> {
+        match self.environment.get(key) {
             Ok(None) => Ok(LoxObject::Nil),
             Ok(Some(object)) => Ok(object.clone()),
             Err(error) => Err(error),
         }
     }
 
-    fn handle_binary(&mut self, left: Expression, operator: BinaryOperator, right: Expression) -> Result<LoxObject> {
+    fn handle_binary(
+        &mut self,
+        left: Expression,
+        operator: BinaryOperator,
+        right: Expression,
+    ) -> Result<LoxObject> {
         use BinaryOperator::{
             BANGEQUAL, EQUALEQUAL, GREATER, GREATEREQUAL, LESS, LESSEQUAL, MINUS, PLUS, SLASH, STAR,
         };
@@ -135,7 +136,4 @@ impl Interpreter {
             UnaryOperator::MINUS => -inner,
         }
     }
-
 }
-
-

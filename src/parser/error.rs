@@ -19,6 +19,4 @@ pub enum ParsingError {
 
     #[error("Expected '}}' after Block.")]
     UntermBrace,
- 
-
 }

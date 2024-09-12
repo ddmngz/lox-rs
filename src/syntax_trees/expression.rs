@@ -18,10 +18,10 @@ pub enum Expression {
         inner: Box<Expression>,
     },
     Variable(SmartString),
-    Assign{
-        name:SmartString,
+    Assign {
+        name: SmartString,
         value: Box<Expression>,
-    }
+    },
 }
 
 impl From<f64> for Expression {
@@ -43,12 +43,9 @@ impl From<SmartString> for Expression {
 }
 
 impl Expression {
-
-
     pub fn nil() -> Self {
         Self::Literal(LoxObject::Nil)
     }
-
 }
 
 #[derive(Clone, Display, Debug)]

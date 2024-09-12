@@ -30,7 +30,7 @@ pub enum Token {
     /// String and Number store their own
     /// Internal representation
     STRING(SmartString),
-    NUMBER (f64),
+    NUMBER(f64),
     AND,
     CLASS,
     ELSE,
@@ -56,7 +56,7 @@ impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::STRING(yarn) => write!(f, "STRING(\"{}\")", yarn),
-            Self::NUMBER (value) => {
+            Self::NUMBER(value) => {
                 write!(f, "NUMBER({value})")
             }
             _ => write!(f, "{:?}", &self),

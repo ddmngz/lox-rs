@@ -41,9 +41,9 @@ impl Parser {
     }
 
     fn declaration(&mut self) -> Result<Statement> {
-        let result = if self.iter.next_if(|x| x.type_ == Token::VAR).is_some(){
+        let result = if self.iter.next_if(|x| x.type_ == Token::VAR).is_some() {
             self.var_declaration()
-        }else{
+        } else {
             self.statement()
         };
         if result.is_err() {
@@ -73,37 +73,48 @@ impl Parser {
             None
         };
 
-        self.semicolon().map(|()| Statement::Var{name, initializer})
+        self.semicolon()
+            .map(|()| Statement::Var { name, initializer })
     }
 
-    fn semicolon(&mut self) -> Result<()>{
+    fn semicolon(&mut self) -> Result<()> {
         if self.iter.next_if(|x| x.type_ == Token::SEMICOLON).is_some() {
             Ok(())
         } else {
-            Err(Self::error(ParsingError::NoSemi, self.iter.peek().map(|x| x.line)))
+            Err(Self::error(
+                ParsingError::NoSemi,
+                self.iter.peek().map(|x| x.line),
+            ))
         }
     }
 
     fn statement(&mut self) -> Result<Statement> {
-        if self.iter.next_if(|x| x.type_ == Token::PRINT).is_some(){
+        if self.iter.next_if(|x| x.type_ == Token::PRINT).is_some() {
             self.print_statement()
-        }else if self.iter.next_if(|x| x.type_ == Token::LEFTBRACE).is_some(){
+        } else if self.iter.next_if(|x| x.type_ == Token::LEFTBRACE).is_some() {
             Ok(Statement::Block(self.block()?))
-        }
-        else{
+        } else {
             self.expression_statement()
         }
     }
 
-    fn block(&mut self) -> Result<Vec<Statement>>{
+    fn block(&mut self) -> Result<Vec<Statement>> {
         let mut statements = Vec::new();
-        while self.iter.peek().is_some_and(|x| x.type_ != Token::RIGHTBRACE){
+        while self
+            .iter
+            .peek()
+            .is_some_and(|x| x.type_ != Token::RIGHTBRACE)
+        {
             statements.push(self.declaration()?)
         }
-        
-        if self.iter.next_if(|x| x.type_ == Token::RIGHTBRACE).is_some(){
+
+        if self
+            .iter
+            .next_if(|x| x.type_ == Token::RIGHTBRACE)
+            .is_some()
+        {
             Ok(statements)
-        }else{
+        } else {
             Err(ParsingError::UntermBrace)
         }
     }
@@ -122,17 +133,14 @@ impl Parser {
         self.assignment()
     }
 
-    fn assignment(&mut self) -> Result<Expression>{
+    fn assignment(&mut self) -> Result<Expression> {
         let expression = self.equality()?;
-        if let Some(ScannedToken{line,..}) = self.iter.next_if(|x| x.type_ == Token::EQUAL){
+        if let Some(ScannedToken { line, .. }) = self.iter.next_if(|x| x.type_ == Token::EQUAL) {
             let value = Box::new(self.assignment()?);
             if let Expression::Variable(name) = expression {
-                return Ok(Expression::Assign{
-                    name,
-                    value
-                })
-            }else{
-                return Err(Self::error(ParsingError::InvalidAssignment, Some(line)))
+                return Ok(Expression::Assign { name, value });
+            } else {
+                return Err(Self::error(ParsingError::InvalidAssignment, Some(line)));
             }
         }
         Ok(expression)
@@ -183,15 +191,15 @@ impl Parser {
     }
 
     fn primary(&mut self) -> Result<Expression> {
-        let Some(ScannedToken{type_:token, line}) = self.iter.next()else{
-            return Err(Self::error(ParsingError::NoExpr, None))
+        let Some(ScannedToken { type_: token, line }) = self.iter.next() else {
+            return Err(Self::error(ParsingError::NoExpr, None));
         };
 
-        match token{
+        match token {
             Token::FALSE => Ok(false.into()),
             Token::TRUE => Ok(true.into()),
             Token::NIL => Ok(Expression::nil()),
-            Token::NUMBER (num) => Ok(num.into()),
+            Token::NUMBER(num) => Ok(num.into()),
             Token::STRING(string) => Ok(string.into()),
             Token::LEFTPAREN => self.handle_paren(),
             Token::IDENTIFIER(name) => Ok(Expression::Variable(name)),
@@ -199,8 +207,6 @@ impl Parser {
         }
     }
 }
-
-
 
 impl Parser {
     fn recursive_descend(
@@ -233,14 +239,21 @@ impl Parser {
         {
             Ok(Expression::Grouping(Box::new(expr)))
         } else {
-            Err(Self::error(ParsingError::UntermParen, self.iter.peek().map(|x| x.line)))
+            Err(Self::error(
+                ParsingError::UntermParen,
+                self.iter.peek().map(|x| x.line),
+            ))
         }
     }
 
-    fn error(error:ParsingError, line: Option<u32>) -> ParsingError{
-        match line{
-            Some(line) => {println!("Error on line {}: {}", line, error)},
-            None => {println!("Error at end of file: {}",error)}
+    fn error(error: ParsingError, line: Option<u32>) -> ParsingError {
+        match line {
+            Some(line) => {
+                println!("Error on line {}: {}", line, error)
+            }
+            None => {
+                println!("Error at end of file: {}", error)
+            }
         };
         error
     }

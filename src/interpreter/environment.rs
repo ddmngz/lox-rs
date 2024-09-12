@@ -41,12 +41,10 @@ impl Environment {
             Self::Global(environment) => environment
                 .get(key)
                 .ok_or_else(|| RuntimeError::Undefined(SmartString::from(key))),
-            Self::Local { environment, outer } => {
-                match environment.get(key){
-                    Some(value) => Ok(value),
-                    None => outer.get(key),
-                }
-            }
+            Self::Local { environment, outer } => match environment.get(key) {
+                Some(value) => Ok(value),
+                None => outer.get(key),
+            },
         }
     }
 
@@ -62,21 +60,17 @@ impl Environment {
             *variable.get_mut() = Some(value);
             Ok(())
         } else {
-            match self{
+            match self {
                 Self::Global(_) => Err(RuntimeError::Undefined(key)),
-                Self::Local{outer, ..} => outer.assign(key, value),
+                Self::Local { outer, .. } => outer.assign(key, value),
             }
         }
     }
 
-    
-    fn get_environment_mut(&mut self) -> &mut HashMap<SmartString, Option<LoxObject>>{
-        match self{
+    fn get_environment_mut(&mut self) -> &mut HashMap<SmartString, Option<LoxObject>> {
+        match self {
             Self::Global(environment) => environment,
-            Self::Local {environment, ..} => environment,
+            Self::Local { environment, .. } => environment,
         }
     }
-
-
-
 }

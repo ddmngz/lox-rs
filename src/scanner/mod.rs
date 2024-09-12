@@ -141,7 +141,7 @@ fn handle_number(iter: &mut Chars, number: char) -> Result<Token> {
     }
     lexeme.push_str(&base[..end]);
     let value: f64 = lexeme.parse()?;
-    Ok(Token::NUMBER (value))
+    Ok(Token::NUMBER(value))
 }
 
 fn advance_while<F>(iter: &mut Chars, f: F) -> usize
@@ -191,8 +191,6 @@ mod tests {
     use super::*;
     use Token::*;
 
-
-
     #[test]
     fn scan_equation() {
         compare_scan("1+1", vec![NUMBER(1.0), PLUS, NUMBER(1.0)])
@@ -238,7 +236,10 @@ mod tests {
 
     #[test]
     fn scan_paren_equation() {
-        compare_scan("(1+1)", vec![LEFTPAREN, NUMBER(1.0), PLUS, NUMBER(1.0), RIGHTPAREN])
+        compare_scan(
+            "(1+1)",
+            vec![LEFTPAREN, NUMBER(1.0), PLUS, NUMBER(1.0), RIGHTPAREN],
+        )
     }
 
     #[test]

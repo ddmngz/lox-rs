@@ -9,8 +9,8 @@ pub mod syntax_trees;
 pub mod token;
 
 use error::Error;
-use parser::Parser;
 use interpreter::Interpreter;
+use parser::Parser;
 
 pub fn run_file(file_name: &str) -> Result<(), Error> {
     let mut file = File::open(file_name).unwrap();
@@ -40,16 +40,14 @@ pub fn run_prompt() -> Result<(), Error> {
     }
 }
 
-fn run(code: Box<str>, interpreter:&mut Interpreter) -> Result<(), Error> {
+fn run(code: Box<str>, interpreter: &mut Interpreter) -> Result<(), Error> {
     if !validate(&code) {
         return Err(Error::NotAscii);
     };
     let tokens = scanner::scan(code)?;
 
-
     let mut parser = Parser::new(tokens);
     let statements = parser.parse()?;
-
 
     match interpreter.interpret(statements) {
         Ok(()) => Ok(()),

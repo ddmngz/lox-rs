@@ -11,6 +11,11 @@ pub enum Expression {
         operator: BinaryOperator,
         right: Box<Expression>,
     },
+    Logical {
+        left: Box<Expression>,
+        operator: LogicalOperator,
+        right: Box<Expression>,
+    },
     Grouping(Box<Expression>),
     Literal(LoxObject),
     Unary {
@@ -78,6 +83,34 @@ pub enum BinaryOperator {
     STAR,
     #[strum(serialize = "/")]
     SLASH,
+}
+
+#[derive(Clone, Display, Debug, PartialEq, Eq)]
+pub enum LogicalOperator {
+    #[strum(serialize = "and")]
+    AND,
+    #[strum(serialize = "or")]
+    OR,
+}
+
+impl Into<Token> for LogicalOperator {
+    fn into(self) -> Token {
+        match self {
+            Self::AND => Token::AND,
+            Self::OR => Token::OR,
+        }
+    }
+}
+
+impl TryFrom<Token> for LogicalOperator {
+    type Error = ();
+    fn try_from(token: Token) -> std::result::Result<Self, Self::Error> {
+        match token {
+            Token::AND => Ok(Self::AND),
+            Token::OR => Ok(Self::OR),
+            _ => Err(()),
+        }
+    }
 }
 
 use crate::token::Token;

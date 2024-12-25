@@ -7,5 +7,10 @@ pub enum Statement {
         name: SmartString,
         initializer: Option<Expression>,
     },
+    If {
+        condition: Expression,
+        then: Box<Statement>,
+        else_case: Option<Box<Statement>>,
+    },
     Block(Vec<Statement>),
 }

@@ -19,6 +19,12 @@ pub enum LoxObject {
     VarName(SmartString),
 }
 
+impl LoxObject {
+    pub fn truthy(&self) -> bool {
+        !matches!(self, Self::Bool(false) | Self::Nil)
+    }
+}
+
 // logic for evaluating is handled through trait implementations, returning Error for invalid type
 // conversions
 

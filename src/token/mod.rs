@@ -52,6 +52,13 @@ pub enum Token {
     EOF,
 }
 
+impl PartialEq<Token> for TokenDiscriminant {
+    fn eq(&self, other: &Token) -> bool {
+        let discrim: TokenDiscriminant = other.into();
+        *self == discrim
+    }
+}
+
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

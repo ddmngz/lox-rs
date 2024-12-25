@@ -1,0 +1,10 @@
+if(true)
+    print "working!";
+else
+    print "error";
+
+if(false)
+    print "error";
+else
+    print "working!";
+    

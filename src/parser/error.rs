@@ -19,4 +19,9 @@ pub enum ParsingError {
 
     #[error("Expected '}}' after Block.")]
     UntermBrace,
+
+    #[error("Expected '(' after 'if'.")]
+    IfParenOpen,
+    #[error("Expected ')' after if condition.")]
+    IfParenClosed,
 }

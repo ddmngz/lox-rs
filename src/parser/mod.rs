@@ -3,7 +3,7 @@ pub mod error;
 pub use error::ParsingError;
 //use crate::scanner::{TokenType::{*,self}, Token};
 use crate::scanner::ScannedToken;
-use crate::syntax_trees::expression::{BinaryOperator, Expression, UnaryOperator};
+use crate::syntax_trees::expression::{BinaryOperator, Expression, LogicalOperator, UnaryOperator};
 use crate::syntax_trees::statement::Statement;
 use crate::token::Token;
 use crate::token::TokenDiscriminant;
@@ -52,9 +52,8 @@ impl Parser {
         result
     }
 
-    fn consume(&mut self, token: TokenDiscriminant) -> Option<ScannedToken> {
-        self.iter
-            .next_if(|x| TokenDiscriminant::from(&x.type_) == token)
+    fn consume(&mut self, token: impl PartialEq<Token>) -> Option<ScannedToken> {
+        self.iter.next_if(|x| token.eq(&x.type_))
     }
 
     fn var_declaration(&mut self) -> Result<Statement> {
@@ -93,9 +92,33 @@ impl Parser {
             self.print_statement()
         } else if self.iter.next_if(|x| x.type_ == Token::LEFTBRACE).is_some() {
             Ok(Statement::Block(self.block()?))
+        } else if self.iter.next_if(|x| x.type_ == Token::IF).is_some() {
+            self.if_statement()
         } else {
             self.expression_statement()
         }
+    }
+
+    fn if_statement(&mut self) -> Result<Statement> {
+        self.consume(TokenDiscriminant::LEFTPAREN)
+            .ok_or(ParsingError::IfParenOpen)?;
+        let condition = self.expression()?;
+        self.consume(TokenDiscriminant::RIGHTPAREN)
+            .ok_or(ParsingError::IfParenOpen)?;
+
+        let then = Box::new(self.statement()?);
+
+        let else_case = if self.iter.next_if(|x| x.type_ == Token::ELSE).is_some() {
+            Some(Box::new(self.statement()?))
+        } else {
+            None
+        };
+
+        Ok(Statement::If {
+            condition,
+            then,
+            else_case,
+        })
     }
 
     fn block(&mut self) -> Result<Vec<Statement>> {
@@ -134,7 +157,7 @@ impl Parser {
     }
 
     fn assignment(&mut self) -> Result<Expression> {
-        let expression = self.equality()?;
+        let expression = self.or()?;
         if let Some(ScannedToken { line, .. }) = self.iter.next_if(|x| x.type_ == Token::EQUAL) {
             let value = Box::new(self.assignment()?);
             if let Expression::Variable(name) = expression {
@@ -144,6 +167,16 @@ impl Parser {
             }
         }
         Ok(expression)
+    }
+
+    fn or(&mut self) -> Result<Expression> {
+        let mut types = [Token::AND];
+        self.descent_logical(Self::and, &mut types)
+    }
+
+    fn and(&mut self) -> Result<Expression> {
+        let mut types = [Token::OR];
+        self.descent_logical(Self::equality, &mut types)
     }
 
     fn equality(&mut self) -> Result<Expression> {
@@ -209,6 +242,25 @@ impl Parser {
 }
 
 impl Parser {
+    fn descent_logical(
+        &mut self,
+        f: fn(&mut Self) -> Result<Expression>,
+        types: &mut [Token],
+    ) -> Result<Expression> {
+        let mut expr = f(self)?;
+        while let Some(token) = self.iter.next_if(|x| types.contains(&x.type_)) {
+            let left = Box::new(expr);
+            let operator = LogicalOperator::try_from(token.type_).unwrap();
+            let right = Box::new(f(self)?);
+            expr = Expression::Logical {
+                left,
+                operator,
+                right,
+            }
+        }
+        Ok(expr)
+    }
+
     fn recursive_descend(
         &mut self,
         f: fn(&mut Self) -> Result<Expression>,

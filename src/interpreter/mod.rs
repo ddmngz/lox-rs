@@ -8,6 +8,7 @@ use crate::syntax_trees::lox_object::LoxObject;
 
 use crate::syntax_trees::expression::BinaryOperator;
 use crate::syntax_trees::expression::Expression;
+use crate::syntax_trees::expression::LogicalOperator;
 use crate::syntax_trees::expression::UnaryOperator;
 use environment::Environment;
 
@@ -54,6 +55,19 @@ impl Interpreter {
                 self.environment.define(name, initial_value);
                 Ok(())
             }
+            Statement::If {
+                condition,
+                then,
+                else_case,
+            } => {
+                if self.evaluate(condition)?.truthy() {
+                    self.execute(*then)
+                } else if let Some(case) = else_case {
+                    self.execute(*case)
+                } else {
+                    Ok(())
+                }
+            }
             Statement::Block(statements) => self.execute_block(statements),
         }
     }
@@ -83,6 +97,21 @@ impl Interpreter {
                 let value = self.evaluate(*value)?;
                 self.environment.assign(name, value.clone())?;
                 Ok(value)
+            }
+            Expression::Logical {
+                left,
+                right,
+                operator,
+            } => {
+                let left = self.evaluate(*left)?;
+                if operator == LogicalOperator::OR {
+                    if left.truthy() {
+                        return Ok(left);
+                    };
+                } else if !left.truthy() {
+                    return Ok(left);
+                }
+                self.evaluate(*right)
             }
         }
     }

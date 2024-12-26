@@ -24,4 +24,19 @@ pub enum ParsingError {
     IfParenOpen,
     #[error("Expected ')' after if condition.")]
     IfParenClosed,
+
+    #[error("Expected '(' after 'while'.")]
+    WhileParenOpen,
+
+    #[error("Expected ')' after while condition.")]
+    WhileParenClosed,
+
+    #[error("Expected '(' after 'while'.")]
+    ForParenOpen,
+
+    #[error("Expected ')' after while condition.")]
+    ForParenClosed,
+
+    #[error("Expected ';' after loop condition.")]
+    ConditionNoSemi,
 }

@@ -4,6 +4,7 @@ pub use error::ParsingError;
 //use crate::scanner::{TokenType::{*,self}, Token};
 use crate::scanner::ScannedToken;
 use crate::syntax_trees::expression::{BinaryOperator, Expression, LogicalOperator, UnaryOperator};
+use crate::syntax_trees::lox_object::LoxObject;
 use crate::syntax_trees::statement::Statement;
 use crate::token::Token;
 use crate::token::TokenDiscriminant;
@@ -90,6 +91,10 @@ impl Parser {
     fn statement(&mut self) -> Result<Statement> {
         if self.iter.next_if(|x| x.type_ == Token::PRINT).is_some() {
             self.print_statement()
+        } else if self.iter.next_if(|x| x.type_ == Token::FOR).is_some() {
+            self.for_statement()
+        } else if self.iter.next_if(|x| x.type_ == Token::WHILE).is_some() {
+            self.while_statement()
         } else if self.iter.next_if(|x| x.type_ == Token::LEFTBRACE).is_some() {
             Ok(Statement::Block(self.block()?))
         } else if self.iter.next_if(|x| x.type_ == Token::IF).is_some() {
@@ -97,6 +102,73 @@ impl Parser {
         } else {
             self.expression_statement()
         }
+    }
+
+    fn for_statement(&mut self) -> Result<Statement> {
+        self.consume(TokenDiscriminant::LEFTPAREN)
+            .ok_or(ParsingError::ForParenOpen)?;
+
+        let initializer = if self.iter.next_if(|x| x.type_ == Token::SEMICOLON).is_some() {
+            None
+        } else if self.iter.next_if(|x| x.type_ == Token::VAR).is_some() {
+            Some(self.var_declaration()?)
+        } else {
+            Some(self.expression_statement()?)
+        };
+
+        let condition = if self
+            .iter
+            .peek()
+            .is_some_and(|x| x.type_ == Token::SEMICOLON)
+        {
+            None
+        } else {
+            Some(self.expression()?)
+        };
+        self.consume(Token::SEMICOLON)
+            .ok_or(ParsingError::ConditionNoSemi)?;
+
+        let increment = if self
+            .iter
+            .peek()
+            .is_some_and(|x| x.type_ != Token::RIGHTPAREN)
+        {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+
+        self.consume(TokenDiscriminant::RIGHTPAREN)
+            .ok_or(ParsingError::ForParenClosed)?;
+
+        let body = if let Some(increment) = increment {
+            Statement::Block(vec![self.statement()?, Statement::Expression(increment)])
+        } else {
+            self.statement()?
+        };
+
+        let condition = condition.unwrap_or(Expression::Literal(LoxObject::Bool(true)));
+
+        let body = Statement::While {
+            condition,
+            body: Box::new(body),
+        };
+
+        if let Some(initializer) = initializer {
+            Ok(Statement::Block(vec![initializer, body]))
+        } else {
+            Ok(body)
+        }
+    }
+
+    fn while_statement(&mut self) -> Result<Statement> {
+        self.consume(TokenDiscriminant::LEFTPAREN)
+            .ok_or(ParsingError::WhileParenOpen)?;
+        let condition = self.expression()?;
+        self.consume(TokenDiscriminant::RIGHTPAREN)
+            .ok_or(ParsingError::WhileParenClosed)?;
+        let body = Box::new(self.statement()?);
+        Ok(Statement::While { condition, body })
     }
 
     fn if_statement(&mut self) -> Result<Statement> {

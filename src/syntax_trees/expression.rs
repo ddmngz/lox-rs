@@ -4,7 +4,7 @@ use strum_macros::Display;
 
 pub type Result<T> = std::result::Result<T, crate::interpreter::RuntimeError>;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Expression {
     Binary {
         left: Box<Expression>,
@@ -53,7 +53,7 @@ impl Expression {
     }
 }
 
-#[derive(Clone, Display, Debug)]
+#[derive(Clone, Copy, Display, Debug)]
 pub enum UnaryOperator {
     #[strum(serialize = "!")]
     BANG,
@@ -61,7 +61,7 @@ pub enum UnaryOperator {
     MINUS,
 }
 
-#[derive(Clone, Display, Debug)]
+#[derive(Copy, Clone, Display, Debug)]
 pub enum BinaryOperator {
     #[strum(serialize = "==")]
     EQUALEQUAL,
@@ -85,7 +85,7 @@ pub enum BinaryOperator {
     SLASH,
 }
 
-#[derive(Clone, Display, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Display, Debug, PartialEq, Eq)]
 pub enum LogicalOperator {
     #[strum(serialize = "and")]
     AND,

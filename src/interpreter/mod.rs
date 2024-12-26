@@ -68,17 +68,23 @@ impl Interpreter {
                     Ok(())
                 }
             }
+            Statement::While { condition, body } => {
+                while self.evaluate(condition.clone())?.truthy() {
+                    self.execute(*body.clone())?;
+                }
+                Ok(())
+            }
             Statement::Block(statements) => self.execute_block(statements),
         }
     }
 
     fn execute_block(&mut self, statements: Vec<Statement>) -> Result<()> {
-        let outer = self.environment.clone();
-        self.environment = Environment::new(outer.clone());
+        self.environment.add_scope();
         for statement in statements {
             self.execute(statement)?;
         }
-        self.environment = outer;
+
+        self.environment.remove_scope();
         Ok(())
     }
 
@@ -142,7 +148,6 @@ impl Interpreter {
         // returning false
         let can_compare = left.partial_cmp(&right).is_some();
         // worst line of code ever written
-
         match operator {
             PLUS => left + right,
             MINUS => left - right,

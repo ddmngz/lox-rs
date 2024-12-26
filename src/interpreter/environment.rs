@@ -13,7 +13,7 @@ pub struct Environment{
     outer: Option<Box<Environment>>
 }*/
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Environment {
     Global(HashMap<SmartString, Option<LoxObject>>),
     Local {
@@ -22,6 +22,9 @@ pub enum Environment {
     },
 }
 
+use std::mem::MaybeUninit;
+struct EnvironmentWrapper(MaybeUninit<Environment>);
+
 impl Default for Environment {
     fn default() -> Self {
         Self::Global(HashMap::new())
@@ -29,10 +32,30 @@ impl Default for Environment {
 }
 
 impl Environment {
+    pub fn add_scope(&mut self) {
+        *self = Self::Local {
+            environment: HashMap::new(),
+            outer: Box::new(self.clone()),
+        };
+    }
+
+    pub fn remove_scope(&mut self) {
+        if let Self::Local { outer, .. } = self {
+            *self = *outer.clone()
+        }
+    }
+
     pub fn new(outer: Environment) -> Self {
         Self::Local {
             environment: HashMap::new(),
             outer: Box::new(outer),
+        }
+    }
+
+    pub fn parent_scope(self) -> Option<Self> {
+        match self {
+            Self::Local { outer, .. } => Some(*outer),
+            Self::Global(_) => None,
         }
     }
 

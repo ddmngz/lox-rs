@@ -5,13 +5,35 @@ pub use error::ParsingError;
 use crate::scanner::ScannedToken;
 use crate::syntax_trees::expression::{BinaryOperator, Expression, LogicalOperator, UnaryOperator};
 use crate::syntax_trees::lox_object::LoxObject;
+use crate::syntax_trees::statement::Function;
 use crate::syntax_trees::statement::Statement;
+use crate::token::Identifier;
 use crate::token::Token;
 use crate::token::TokenDiscriminant;
+use std::fmt;
 use std::iter::Peekable;
 
 pub struct Parser {
     iter: Peekable<<Vec<ScannedToken> as IntoIterator>::IntoIter>,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum FunctionKind {
+    Function,
+    Method,
+}
+
+impl fmt::Display for FunctionKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Function => "function",
+                Self::Method => "method",
+            }
+        )
+    }
 }
 
 type Result<T> = std::result::Result<T, ParsingError>;
@@ -44,6 +66,8 @@ impl Parser {
     fn declaration(&mut self) -> Result<Statement> {
         let result = if self.iter.next_if(|x| x.type_ == Token::VAR).is_some() {
             self.var_declaration()
+        } else if self.iter.next_if(|x| x.type_ == Token::FUN).is_some() {
+            self.function(FunctionKind::Function)
         } else {
             self.statement()
         };
@@ -53,15 +77,52 @@ impl Parser {
         result
     }
 
-    fn consume(&mut self, token: impl PartialEq<Token>) -> Option<ScannedToken> {
-        self.iter.next_if(|x| token.eq(&x.type_))
+    fn get_identifier(&mut self) -> Result<Identifier> {
+        let Some(next) = self.iter.next() else {
+            return Err(ParsingError::NoIdentifier);
+        };
+        let res: std::result::Result<Identifier, ()> = next.type_.try_into();
+        res.map_err(|_| ParsingError::NoIdentifier)
+    }
+
+    fn function(&mut self, kind: FunctionKind) -> Result<Statement> {
+        let name = self.get_identifier()?;
+        self.consume(Token::LEFTPAREN, ParsingError::FnParenOpen(kind));
+        let mut params = Vec::new();
+        if self
+            .iter
+            .peek()
+            .is_some_and(|x| x.type_ != Token::RIGHTPAREN)
+        {
+            loop {
+                if params.len() >= 255 {
+                    println!("Can't have more than 255 parameters.");
+                };
+                params.push(self.get_identifier()?);
+                if self.iter.next_if(|x| x.type_ == Token::COMMA).is_none() {
+                    break;
+                }
+            }
+        }
+        self.consume(Token::LEFTPAREN, ParsingError::FnParenClosed(kind))?;
+        self.consume(Token::LEFTBRACE, ParsingError::FnNoBraceOpen(kind))?;
+        let body = self.block()?;
+        Ok(Statement::Function(Function { name, params, body }))
+    }
+
+    fn consume(
+        &mut self,
+        token: impl PartialEq<Token>,
+        error: ParsingError,
+    ) -> Result<ScannedToken> {
+        self.iter.next_if(|x| token.eq(&x.type_)).ok_or(error)
     }
 
     fn var_declaration(&mut self) -> Result<Statement> {
-        let Some(ScannedToken {
+        let Ok(ScannedToken {
             type_: Token::IDENTIFIER(name),
             ..
-        }) = self.consume(TokenDiscriminant::IDENTIFIER)
+        }) = self.consume(TokenDiscriminant::IDENTIFIER, ParsingError::NoIdentifier)
         else {
             Self::error(ParsingError::NoIdentifier, self.iter.peek().map(|x| x.line));
             return Err(ParsingError::NoIdentifier);
@@ -105,8 +166,7 @@ impl Parser {
     }
 
     fn for_statement(&mut self) -> Result<Statement> {
-        self.consume(TokenDiscriminant::LEFTPAREN)
-            .ok_or(ParsingError::ForParenOpen)?;
+        self.consume(TokenDiscriminant::LEFTPAREN, ParsingError::ForParenOpen)?;
 
         let initializer = if self.iter.next_if(|x| x.type_ == Token::SEMICOLON).is_some() {
             None
@@ -125,8 +185,7 @@ impl Parser {
         } else {
             Some(self.expression()?)
         };
-        self.consume(Token::SEMICOLON)
-            .ok_or(ParsingError::ConditionNoSemi)?;
+        self.consume(Token::SEMICOLON, ParsingError::ConditionNoSemi)?;
 
         let increment = if self
             .iter
@@ -138,8 +197,7 @@ impl Parser {
             None
         };
 
-        self.consume(TokenDiscriminant::RIGHTPAREN)
-            .ok_or(ParsingError::ForParenClosed)?;
+        self.consume(TokenDiscriminant::RIGHTPAREN, ParsingError::ForParenClosed)?;
 
         let body = if let Some(increment) = increment {
             Statement::Block(vec![self.statement()?, Statement::Expression(increment)])
@@ -162,21 +220,20 @@ impl Parser {
     }
 
     fn while_statement(&mut self) -> Result<Statement> {
-        self.consume(TokenDiscriminant::LEFTPAREN)
-            .ok_or(ParsingError::WhileParenOpen)?;
+        self.consume(TokenDiscriminant::LEFTPAREN, ParsingError::WhileParenOpen)?;
         let condition = self.expression()?;
-        self.consume(TokenDiscriminant::RIGHTPAREN)
-            .ok_or(ParsingError::WhileParenClosed)?;
+        self.consume(
+            TokenDiscriminant::RIGHTPAREN,
+            ParsingError::WhileParenClosed,
+        )?;
         let body = Box::new(self.statement()?);
         Ok(Statement::While { condition, body })
     }
 
     fn if_statement(&mut self) -> Result<Statement> {
-        self.consume(TokenDiscriminant::LEFTPAREN)
-            .ok_or(ParsingError::IfParenOpen)?;
+        self.consume(TokenDiscriminant::LEFTPAREN, ParsingError::IfParenOpen)?;
         let condition = self.expression()?;
-        self.consume(TokenDiscriminant::RIGHTPAREN)
-            .ok_or(ParsingError::IfParenOpen)?;
+        self.consume(TokenDiscriminant::RIGHTPAREN, ParsingError::IfParenOpen)?;
 
         let then = Box::new(self.statement()?);
 
@@ -292,7 +349,49 @@ impl Parser {
                 inner: Box::new(right),
             });
         }
-        self.primary()
+        self.call()
+    }
+
+    fn call(&mut self) -> Result<Expression> {
+        let mut expr = self.primary();
+        while let Some(_) = self.iter.next_if(|x| x.type_ != Token::LEFTPAREN) {
+            expr = self.finish_call(expr?);
+        }
+        expr
+    }
+
+    fn next_if(&mut self, token: impl PartialEq<Token>) -> Option<ScannedToken> {
+        self.iter.next_if(|x| token.eq(&x.type_))
+    }
+
+    fn next_unless(&mut self, token: impl PartialEq<Token>) -> Option<ScannedToken> {
+        self.iter.next_if(|x| !token.eq(&x.type_))
+    }
+
+    fn finish_call(&mut self, callee: Expression) -> Result<Expression> {
+        let mut args = Vec::new();
+        if self
+            .iter
+            .peek()
+            .is_some_and(|x| x.type_ != Token::RIGHTPAREN)
+        {
+            loop {
+                if args.len() >= 255 {
+                    // print too many args
+                    //return Err(ParsingError::TooManyArgs);
+                }
+                args.push(self.expression()?);
+                if self.next_if(Token::COMMA).is_none() {
+                    break;
+                };
+            }
+        };
+        let paren = self.consume(Token::RIGHTPAREN, ParsingError::FnNoCloseParen)?;
+        Ok(Expression::Call {
+            callee: Box::new(callee),
+            paren,
+            args,
+        })
     }
 
     fn primary(&mut self) -> Result<Expression> {

@@ -3,6 +3,10 @@ use std::cmp;
 use std::ops;
 use strum_macros::Display;
 pub type Result<T> = std::result::Result<T, RuntimeError>;
+use super::lox_callable;
+use super::lox_callable::Callable;
+use super::lox_callable::MaybeCallable;
+use super::statement::Function;
 use crate::token::SmartString;
 
 #[derive(Clone, Debug, Display)]
@@ -17,6 +21,40 @@ pub enum LoxObject {
     Nil,
     #[strum(serialize = "{0}")]
     VarName(SmartString),
+    #[strum(serialize = "{0}")]
+    LoxFunction(Function),
+}
+
+/*
+#[derive(Debug, Clone)]
+struct LoxFunction {
+    declaration: super::statement::Statement,
+
+}
+
+impl std::fmt::Display for LoxFunction {}
+*/
+
+impl MaybeCallable for LoxObject {
+    fn try_call(
+        &self,
+        interpreter: &mut crate::interpreter::Interpreter,
+        args: Vec<LoxObject>,
+    ) -> crate::syntax_trees::lox_callable::Result<LoxObject> {
+        if let Self::LoxFunction(f) = self {
+            Ok(f.call(interpreter, args))
+        } else {
+            Err(lox_callable::NotCallable::Unit)
+        }
+    }
+
+    fn try_arity(&self) -> lox_callable::Result<usize> {
+        if let Self::LoxFunction(f) = self {
+            Ok(f.arity())
+        } else {
+            Err(lox_callable::NotCallable::Unit)
+        }
+    }
 }
 
 impl LoxObject {

@@ -1,3 +1,4 @@
+use super::FunctionKind;
 use thiserror::Error;
 
 #[derive(Debug, Clone, Error)]
@@ -39,4 +40,23 @@ pub enum ParsingError {
 
     #[error("Expected ';' after loop condition.")]
     ConditionNoSemi,
+
+    #[error("Expected ')' after Arguments")]
+    FnNoCloseParen,
+
+    #[error("Can't have more than 255 Arguments")]
+    TooManyArgs,
+
+    #[error("expected {0} name")]
+    ExpectedFn(FunctionKind),
+
+    #[error("Expected '(' after {0} name")]
+    FnParenOpen(FunctionKind),
+    #[error("Expected ')' after {0} arguments")]
+    FnParenClosed(FunctionKind),
+
+    #[error("Expected '{{' before {0} body")]
+    FnNoBraceOpen(FunctionKind),
+    #[error("Expected '}}' after {0} body")]
+    FnNoBraceClosed(FunctionKind),
 }

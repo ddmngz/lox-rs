@@ -1,6 +1,7 @@
 mod environment;
 mod error;
 
+use crate::syntax_trees::lox_callable::MaybeCallable;
 use crate::syntax_trees::statement::Statement;
 pub use error::RuntimeError;
 
@@ -78,6 +79,8 @@ impl Interpreter {
         }
     }
 
+    fn globals(&self) -> &Environment {}
+
     fn execute_block(&mut self, statements: Vec<Statement>) -> Result<()> {
         self.environment.add_scope();
         for statement in statements {
@@ -118,6 +121,27 @@ impl Interpreter {
                     return Ok(left);
                 }
                 self.evaluate(*right)
+            }
+            Expression::Call {
+                callee,
+                paren,
+                args,
+            } => {
+                let callee = self.evaluate(*callee)?;
+                let mut evaluated_args = Vec::new();
+                for arg in args {
+                    evaluated_args.push(self.evaluate(arg)?);
+                }
+
+                let arity = callee.try_arity()?;
+                if evaluated_args.len() == arity {
+                    Ok(callee.try_call(self, evaluated_args)?)
+                } else {
+                    Err(RuntimeError::Arity {
+                        expected: arity,
+                        got: evaluated_args.len(),
+                    })
+                }
             }
         }
     }
@@ -169,5 +193,22 @@ impl Interpreter {
             UnaryOperator::BANG => !inner,
             UnaryOperator::MINUS => -inner,
         }
+    }
+}
+
+use crate::syntax_trees::lox_callable::Callable;
+use crate::syntax_trees::statement::Function;
+impl Callable for Function {
+    fn call(
+        &self,
+        interpreter: &mut crate::interpreter::Interpreter,
+        args: Vec<LoxObject>,
+    ) -> LoxObject {
+        let env = Environment::new(interpreter.environment.globals);
+        todo!()
+    }
+
+    fn arity(&self) -> usize {
+        self.params.len()
     }
 }

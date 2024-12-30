@@ -52,6 +52,33 @@ pub enum Token {
     EOF,
 }
 
+#[derive(Clone, Debug)]
+pub struct Identifier(SmartString);
+
+impl fmt::Display for Identifier {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl TryFrom<Token> for Identifier {
+    type Error = ();
+
+    fn try_from(token: Token) -> std::result::Result<Self, Self::Error> {
+        if let Token::IDENTIFIER(i) = token {
+            Ok(Self(i))
+        } else {
+            Err(())
+        }
+    }
+}
+
+impl From<Identifier> for Token {
+    fn from(ident: Identifier) -> Self {
+        Self::IDENTIFIER(ident.0)
+    }
+}
+
 impl PartialEq<Token> for TokenDiscriminant {
     fn eq(&self, other: &Token) -> bool {
         let discrim: TokenDiscriminant = other.into();

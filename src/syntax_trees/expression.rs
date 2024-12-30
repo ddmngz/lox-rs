@@ -1,5 +1,9 @@
 use super::lox_object::LoxObject;
+use crate::scanner::ScannedToken;
+use crate::syntax_trees::lox_callable::MaybeCallable;
 use crate::token::SmartString;
+use crate::Interpreter;
+use std::fmt;
 use strum_macros::Display;
 
 pub type Result<T> = std::result::Result<T, crate::interpreter::RuntimeError>;
@@ -18,6 +22,11 @@ pub enum Expression {
     },
     Grouping(Box<Expression>),
     Literal(LoxObject),
+    Call {
+        callee: Box<Expression>,
+        paren: ScannedToken,
+        args: Vec<Expression>,
+    },
     Unary {
         operator: UnaryOperator,
         inner: Box<Expression>,
@@ -28,6 +37,58 @@ pub enum Expression {
         value: Box<Expression>,
     },
 }
+
+impl fmt::Display for Expression {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Binary {
+                left,
+                operator,
+                right,
+            } => write!(f, "({}{}{})", left, operator, right),
+            Self::Logical {
+                left,
+                operator,
+                right,
+            } => write!(f, "({}{}{})", left, operator, right),
+            Self::Grouping(e) => write!(f, "({})", e),
+            Self::Literal(o) => write!(f, "{}", o),
+            Self::Call { callee, args, .. } => {
+                write!(f, "{callee}(")?;
+                if let Some(last) = args.last() {
+                    for arg in &args[..args.len() - 1] {
+                        write!(f, "{arg},")?;
+                    }
+                    write!(f, "{last}")?;
+                }
+                write!(f, ")")
+            }
+            Self::Unary { operator, inner } => write!(f, "({operator}{inner})"),
+            Self::Variable(var) => write!(f, "({var})"),
+            Self::Assign { name, value } => write!(f, "({name} = {value})"),
+        }
+    }
+}
+
+impl MaybeCallable for Expression {
+    fn try_call(
+        &self,
+        interpreter: &mut Interpreter,
+        args: Vec<LoxObject>,
+    ) -> crate::syntax_trees::lox_callable::Result<LoxObject> {
+        todo!()
+    }
+
+    fn try_arity(&self) -> crate::syntax_trees::lox_callable::Result<usize> {
+        todo!()
+    }
+}
+
+/*
+struct Call_able {}
+
+impl TryInto<Call_able> for Expression {}
+*/
 
 impl From<f64> for Expression {
     fn from(float: f64) -> Self {

@@ -32,6 +32,20 @@ impl Default for Environment {
 }
 
 impl Environment {
+    const fn global(&self) -> &Environment {
+        match self {
+            Self::Global(_) => self,
+            Self::Local { outer, .. } => outer.global(),
+        }
+    }
+
+    const fn global_mut(&mut self) -> &mut Environment {
+        match self {
+            Self::Global(_) => self,
+            Self::Local { outer, .. } => outer.global_mut(),
+        }
+    }
+
     pub fn add_scope(&mut self) {
         *self = Self::Local {
             environment: HashMap::new(),

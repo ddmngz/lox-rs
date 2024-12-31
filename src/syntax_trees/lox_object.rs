@@ -4,6 +4,8 @@ use std::ops;
 use strum_macros::Display;
 pub type Result<T> = std::result::Result<T, RuntimeError>;
 use super::statement::Function;
+use crate::interpreter::environment::Closure;
+use crate::interpreter::Environment;
 use crate::token::SmartString;
 
 #[derive(Clone, Debug, Display)]
@@ -18,8 +20,8 @@ pub enum LoxObject {
     Nil,
     #[strum(serialize = "{0}")]
     VarName(SmartString),
-    #[strum(serialize = "{0}")]
-    LoxFunction(Function),
+    #[strum(serialize = "{declaration}")]
+    LoxFunction { declaration: Function, env: Closure },
 }
 
 /*

@@ -12,26 +12,35 @@ type Env = HashMap<SmartString, Option<LoxObject>>;
 
 pub struct EnvironmentTree {
     global: GlobalEnv,
-    leaves: Vec<LeafNode>,
+    leaves: Vec<Leaf>,
 }
 
-impl fmt::Display for EnvironmentTree {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut level = 0;
-        if let Some(LeafNode::Scoped(mut cur_node)) = self.cur_borrow().cloned() {
-            while let Parent::Scoped(parent) = cur_node.parent {
-                level += 1;
-                cur_node = *parent;
-            }
+#[derive(Clone)]
+enum Leaf {
+    Node(Node),
+    Closure(Closure),
+}
+
+impl Environment for Leaf {
+    fn get(&self, key: &str) -> Result<Option<LoxObject>> {
+        match self {
+            Self::Node(node) => node.get(key),
+            Self::Closure(closure) => closure.get(key),
         }
-        let environment = self.leaves.len();
-        write!(
-            f,
-            "level {}, {} environment, {:?}",
-            level,
-            environment,
-            self.cur_borrow()
-        )
+    }
+
+    fn define(&mut self, key: SmartString, value: Option<LoxObject>) {
+        match self {
+            Self::Node(node) => node.define(key, value),
+            Self::Closure(closure) => closure.define(key, value),
+        }
+    }
+
+    fn assign(&mut self, key: SmartString, value: LoxObject) -> Result<()> {
+        match self {
+            Self::Node(node) => node.assign(key, value),
+            Self::Closure(closure) => closure.assign(key, value),
+        }
     }
 }
 
@@ -42,7 +51,7 @@ impl Default for EnvironmentTree {
 }
 
 #[derive(Debug)]
-struct GlobalEnv(Env);
+struct GlobalEnv(pub Env);
 
 impl std::ops::Deref for GlobalEnv {
     type Target = Env;
@@ -61,48 +70,45 @@ impl EnvironmentTree {
     pub fn add_scope(&mut self) {
         // using cur_node here causes borrowck issues
         match self.leaves.last_mut() {
-            Some(cur) => match cur {
-                LeafNode::Scoped(node) => *cur = LeafNode::new_scoped(node.clone()),
-                LeafNode::Global => *cur = LeafNode::new_global_child(&mut self.global),
-            },
+            Some(cur) => *cur = Leaf::Node(Node::new_scoped(cur.clone())),
             None => {
-                eprintln!("--new global child");
                 self.leaves
-                    .push(LeafNode::new_global_child(&mut self.global));
+                    .push(Leaf::Node(Node::new_global(&mut self.global)));
             }
         }
     }
 
-    pub fn add_function_scope(&mut self) {
-        self.leaves
-            .push(LeafNode::new_global_child(&mut self.global));
+    pub fn add_function_scope(&mut self, closure: Closure) {
+        self.leaves.push(Leaf::Closure(closure));
     }
 
-    fn cur_node(&mut self) -> Option<&mut LeafNode> {
+    fn cur_node(&mut self) -> Option<&mut Leaf> {
         self.leaves.last_mut()
     }
 
-    fn cur_borrow(&self) -> Option<&LeafNode> {
+    fn cur_borrow(&self) -> Option<&Leaf> {
         self.leaves.last()
     }
 
     pub fn remove_scope(&mut self) {
-        // this gets kind of complicated so I'm gonna comment this
-        // this is a reference to the slot in the vec
-        let leaf_slot = self.cur_node().expect("tried to remove Global Scope");
-        let LeafNode::Scoped(node) = leaf_slot else {
-            // if the leaf in the slot is LeafNode::Global, that means removing the scope will just
-            // delete it, so we remove it from the Leaves list
-            self.leaves.pop();
-            return;
-        };
+        let leaf = self.cur_node().expect("tried to remove Global Scope");
 
-        // otherwise, if it's parent is local then set itself to its parent, if it's parent is
-        // global, then we set it to that placeholder
-        if let Parent::Scoped(parent) = &mut node.parent {
-            *node = *parent.clone();
-        } else {
-            *leaf_slot = LeafNode::Global
+        match leaf {
+            Leaf::Node(node) => {
+                if let Parent::Scoped(parent) = &mut node.parent {
+                    *node = *parent.clone();
+                } else {
+                    self.leaves.pop();
+                }
+            }
+
+            Leaf::Closure(closure) => {
+                if let Some(parent) = &mut closure.parent {
+                    *closure = *parent.clone()
+                } else {
+                    self.leaves.pop();
+                }
+            }
         }
     }
 
@@ -110,22 +116,14 @@ impl EnvironmentTree {
         let Some(last) = self.leaves.last() else {
             return &self.global;
         };
-        match last {
-            LeafNode::Scoped(node) => node,
-            LeafNode::Global => &self.global,
-        }
+        last
     }
 
     pub fn cur_mut(&mut self) -> &mut dyn Environment {
         let Some(last) = self.leaves.last_mut() else {
             return &mut self.global;
         };
-        if let LeafNode::Scoped(node) = last {
-            node
-        } else {
-            //borrow checker was weird with a match statement so I had to do an if let
-            &mut self.global
-        }
+        last
     }
 
     fn new() -> Self {
@@ -134,22 +132,13 @@ impl EnvironmentTree {
             leaves: Vec::new(),
         }
     }
-}
 
-#[derive(Debug, Clone)]
-enum LeafNode {
-    Scoped(Node),
-    Global,
-}
-
-impl LeafNode {
-    fn new_scoped(node: Node) -> Self {
-        Self::Scoped(Node::new_scoped(node))
-    }
-
-    /// Create a new node whose parent is the global environment
-    fn new_global_child(env: &mut GlobalEnv) -> Self {
-        Self::Scoped(Node::new_global(env))
+    pub fn new_closure(&self) -> Closure {
+        if let Some(last) = self.leaves.last() {
+            Closure::from(last)
+        } else {
+            Closure::from(&self.global)
+        }
     }
 }
 
@@ -163,6 +152,44 @@ struct Node {
 enum Parent {
     Global(NonNull<GlobalEnv>),
     Scoped(Box<Node>),
+}
+
+#[derive(Clone, Debug)]
+pub struct Closure {
+    env: Env,
+    parent: Option<Box<Closure>>,
+}
+
+impl From<&Leaf> for Closure {
+    fn from(leaf: &Leaf) -> Self {
+        match leaf {
+            Leaf::Closure(closure) => closure.clone(),
+            Leaf::Node(node) => node.into(),
+        }
+    }
+}
+
+impl From<&GlobalEnv> for Closure {
+    fn from(env: &GlobalEnv) -> Self {
+        Self {
+            env: env.0.clone(),
+            parent: None,
+        }
+    }
+}
+
+impl From<&Node> for Closure {
+    fn from(node: &Node) -> Self {
+        let parent: Closure = match node.parent {
+            Parent::Global(global) => unsafe { global.as_ref() }.into(),
+            Parent::Scoped(ref node) => node.as_ref().into(),
+        };
+        let parent = Some(Box::new(parent));
+        Self {
+            env: node.inner.clone(),
+            parent,
+        }
+    }
 }
 
 pub trait Environment {
@@ -210,9 +237,37 @@ impl Environment for Node {
     }
 }
 
+impl Environment for Closure {
+    fn get(&self, key: &str) -> Result<Option<LoxObject>> {
+        if let Some(value) = self.env.get(key) {
+            Ok(value.clone())
+        } else {
+            match &self.parent {
+                Some(closure) => closure.get(key),
+                None => Err(RuntimeError::Undefined(key.into())),
+            }
+        }
+    }
+
+    fn define(&mut self, key: SmartString, value: Option<LoxObject>) {
+        self.env.insert(key, value);
+    }
+
+    fn assign(&mut self, key: SmartString, value: LoxObject) -> Result<()> {
+        if let Entry::Occupied(mut variable) = self.env.entry(key.clone()) {
+            *variable.get_mut() = Some(value);
+            Ok(())
+        } else {
+            match &mut self.parent {
+                Some(closure) => closure.assign(key, value),
+                None => Err(RuntimeError::Undefined(key.into())),
+            }
+        }
+    }
+}
+
 impl Environment for GlobalEnv {
     fn get(&self, key: &str) -> Result<Option<LoxObject>> {
-        println!("global get {:?}", self);
         if let Some(value) = self.0.get(key) {
             Ok(value.clone())
         } else {

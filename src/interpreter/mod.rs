@@ -1,4 +1,4 @@
-mod environment;
+pub mod environment;
 pub mod error;
 
 use crate::syntax_trees::statement::Statement;
@@ -10,7 +10,7 @@ use crate::syntax_trees::expression::BinaryOperator;
 use crate::syntax_trees::expression::Expression;
 use crate::syntax_trees::expression::LogicalOperator;
 use crate::syntax_trees::expression::UnaryOperator;
-use environment::Environment;
+pub use environment::Environment;
 use environment::EnvironmentTree;
 
 #[derive(Default)]
@@ -31,7 +31,6 @@ pub fn interpret(statements: Vec<Statement>) -> Result<()> {
 impl Interpreter {
     pub fn interpret(&mut self, statements: Vec<Statement>) -> Result<()> {
         for statement_ in statements {
-            eprintln!("{}", self.environment);
             self.execute(statement_)?;
         }
         Ok(())
@@ -78,17 +77,17 @@ impl Interpreter {
                 Ok(None)
             }
             Statement::Block(statements) => {
-                eprintln!("block{{");
                 self.environment.add_scope();
                 let ret_val = self.execute_block(statements)?;
                 self.environment.remove_scope();
-                eprintln!("}}");
                 Ok(ret_val)
             }
             Statement::Function(function) => {
-                println!("Function Declaration! current env: {}", self.environment);
                 let name = function.name.clone().into();
-                let function_object = LoxObject::LoxFunction(function);
+                let function_object = LoxObject::LoxFunction {
+                    declaration: function,
+                    env: self.environment.new_closure(),
+                };
                 self.environment
                     .cur_mut()
                     .define(name, Some(function_object));
@@ -108,7 +107,6 @@ impl Interpreter {
 
     fn execute_block(&mut self, statements: Vec<Statement>) -> Result<Option<LoxObject>> {
         for statement in statements {
-            //eprintln!("{}", self.environment);
             if let Some(return_value) = self.execute(statement)? {
                 return Ok(Some(return_value));
             }
@@ -117,7 +115,6 @@ impl Interpreter {
     }
 
     pub fn evaluate(&mut self, expression: Expression) -> Result<LoxObject> {
-        //println!("evaluate {expression}");
         match expression {
             Expression::Binary {
                 left,
@@ -260,7 +257,6 @@ impl Callable for Function {
         interpreter: &mut crate::interpreter::Interpreter,
         args: Vec<LoxObject>,
     ) -> lox_callable::CallableResult {
-        eprintln!("function {}({:?}){{", self.name, args);
         interpreter.environment.add_function_scope();
         for (param, arg) in self.params.iter().zip(args) {
             interpreter
@@ -268,11 +264,8 @@ impl Callable for Function {
                 .cur_mut()
                 .define(param.clone().into(), Some(arg))
         }
-        eprintln!("{}", interpreter.environment);
         let return_value = interpreter.execute_block(self.body.clone())?;
-        //eprintln!("returning {return_value:?}");
         interpreter.environment.remove_scope();
-        eprintln!("}}");
         match return_value {
             Some(value) => Ok(value),
             None => Ok(LoxObject::Nil),

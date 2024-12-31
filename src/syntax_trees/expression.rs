@@ -1,6 +1,5 @@
 use super::lox_object::LoxObject;
 use crate::scanner::ScannedToken;
-use crate::syntax_trees::lox_callable::MaybeCallable;
 use crate::token::SmartString;
 use crate::Interpreter;
 use std::fmt;
@@ -31,7 +30,10 @@ pub enum Expression {
         operator: UnaryOperator,
         inner: Box<Expression>,
     },
-    Variable(SmartString),
+    Variable {
+        name: SmartString,
+        line: u32,
+    },
     Assign {
         name: SmartString,
         value: Box<Expression>,
@@ -64,23 +66,9 @@ impl fmt::Display for Expression {
                 write!(f, ")")
             }
             Self::Unary { operator, inner } => write!(f, "({operator}{inner})"),
-            Self::Variable(var) => write!(f, "({var})"),
+            Self::Variable { name: var, .. } => write!(f, "({var})"),
             Self::Assign { name, value } => write!(f, "({name} = {value})"),
         }
-    }
-}
-
-impl MaybeCallable for Expression {
-    fn try_call(
-        &self,
-        interpreter: &mut Interpreter,
-        args: Vec<LoxObject>,
-    ) -> crate::syntax_trees::lox_callable::Result<LoxObject> {
-        todo!()
-    }
-
-    fn try_arity(&self) -> crate::syntax_trees::lox_callable::Result<usize> {
-        todo!()
     }
 }
 
@@ -125,25 +113,25 @@ pub enum UnaryOperator {
 #[derive(Copy, Clone, Display, Debug)]
 pub enum BinaryOperator {
     #[strum(serialize = "==")]
-    EQUALEQUAL,
+    EQUALEQUAL(u32),
     #[strum(serialize = "!=")]
-    BANGEQUAL,
+    BANGEQUAL(u32),
     #[strum(serialize = ">")]
-    GREATER,
+    GREATER(u32),
     #[strum(serialize = ">=")]
-    GREATEREQUAL,
+    GREATEREQUAL(u32),
     #[strum(serialize = "<")]
-    LESS,
+    LESS(u32),
     #[strum(serialize = "<=")]
-    LESSEQUAL,
+    LESSEQUAL(u32),
     #[strum(serialize = "+")]
-    PLUS,
+    PLUS(u32),
     #[strum(serialize = "-")]
-    MINUS,
+    MINUS(u32),
     #[strum(serialize = "*")]
-    STAR,
+    STAR(u32),
     #[strum(serialize = "/")]
-    SLASH,
+    SLASH(u32),
 }
 
 #[derive(Copy, Clone, Display, Debug, PartialEq, Eq)]
@@ -177,18 +165,19 @@ impl TryFrom<Token> for LogicalOperator {
 use crate::token::Token;
 impl BinaryOperator {
     // trying really hard to prefer duplication to the wrong abstraction here
-    pub fn from_token(token: Token) -> Option<Self> {
-        match token {
-            Token::EQUALEQUAL => Some(Self::EQUALEQUAL),
-            Token::BANGEQUAL => Some(Self::BANGEQUAL),
-            Token::GREATER => Some(Self::GREATER),
-            Token::GREATEREQUAL => Some(Self::GREATEREQUAL),
-            Token::LESS => Some(Self::LESS),
-            Token::LESSEQUAL => Some(Self::LESSEQUAL),
-            Token::PLUS => Some(Self::PLUS),
-            Token::MINUS => Some(Self::MINUS),
-            Token::STAR => Some(Self::STAR),
-            Token::SLASH => Some(Self::SLASH),
+
+    pub fn from_token(token: ScannedToken) -> Option<Self> {
+        match token.type_ {
+            Token::EQUALEQUAL => Some(Self::EQUALEQUAL(token.line)),
+            Token::BANGEQUAL => Some(Self::BANGEQUAL(token.line)),
+            Token::GREATER => Some(Self::GREATER(token.line)),
+            Token::GREATEREQUAL => Some(Self::GREATEREQUAL(token.line)),
+            Token::LESS => Some(Self::LESS(token.line)),
+            Token::LESSEQUAL => Some(Self::LESSEQUAL(token.line)),
+            Token::PLUS => Some(Self::PLUS(token.line)),
+            Token::MINUS => Some(Self::MINUS(token.line)),
+            Token::STAR => Some(Self::STAR(token.line)),
+            Token::SLASH => Some(Self::SLASH(token.line)),
             _ => None,
         }
     }

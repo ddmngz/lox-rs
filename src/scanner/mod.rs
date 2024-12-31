@@ -23,15 +23,16 @@ pub enum ScanResult {
     INVALID,
 }
 
-pub fn scan(source: Box<str>) -> Result<Vec<ScannedToken>> {
+pub fn scan(source: &str) -> Result<Vec<ScannedToken>> {
     let mut tokens = Vec::with_capacity(source.len());
     let mut err = None;
     let mut line = 1;
     let mut iter = source.chars();
+    let mut cur_slice = iter.as_str();
     while let Some(char) = iter.next() {
         match scan_token(char) {
             ScanResult::Token(t) => tokens.push(token(t, line)),
-            ScanResult::Operator(o) => tokens.push(token(operator(o, &source), line)),
+            ScanResult::Operator(o) => tokens.push(token(operator(o, cur_slice, &mut iter), line)),
             ScanResult::NEWLINE => line += 1,
             ScanResult::NUMBER(number) => {
                 tokens.push(token(handle_number(&mut iter, number)?, line));
@@ -65,6 +66,7 @@ pub fn scan(source: Box<str>) -> Result<Vec<ScannedToken>> {
                 err = Some(ScanningError::Syntax);
             }
         }
+        cur_slice = iter.as_str();
     }
     match err {
         Some(error) => Err(error),
@@ -77,8 +79,9 @@ fn string(source: &str, line: u32) -> ScannedToken {
     ScannedToken::new(token, line)
 }
 
-fn operator(operator: Operator, source: &str) -> Token {
+fn operator(operator: Operator, source: &str, iter: &mut Chars) -> Token {
     if source.len() >= 2 && source.chars().nth(1).is_some_and(|x| x == '=') {
+        iter.next();
         operator.into_equal()
     } else {
         operator.into()
@@ -213,7 +216,7 @@ mod tests {
 
     #[test]
     fn skip_whitespace() {
-        assert!(scan("\t \n\n \t \r".into()).is_ok_and(|x| x.is_empty()))
+        assert!(scan("\t \n\n \t \r").is_ok_and(|x| x.is_empty()))
     }
 
     #[test]
@@ -267,9 +270,7 @@ mod tests {
 
     #[test]
     fn unterm_string() {
-        assert!(
-            scan("\"unterminated moment".into()).is_err_and(|e| e == ScanningError::UntermString)
-        )
+        assert!(scan("\"unterminated moment").is_err_and(|e| e == ScanningError::UntermString))
     }
 
     #[test]
@@ -282,19 +283,19 @@ mod tests {
 
     fn compare_one(string: &str, target: Token) {
         let string: Box<str> = string.into();
-        let token = scan(string).unwrap()[0].type_.clone();
+        let token = scan(&string).unwrap()[0].type_.clone();
         assert_eq!(token, target)
     }
 
     fn compare_scan(string: &str, goal: Vec<Token>) {
         let string: Box<str> = string.into();
-        let scanned_tokens: Vec<_> = scan(string.clone())
+        let scanned_tokens: Vec<_> = scan(&string.clone())
             .unwrap()
             .into_iter()
             .map(|x| x.type_)
             .collect();
         println!("{:?}", scanned_tokens);
-        let scanned_tokens = scan(string).unwrap().into_iter().map(|x| x.type_);
+        let scanned_tokens = scan(&string).unwrap().into_iter().map(|x| x.type_);
         for (scanned_token, goal_token) in std::iter::zip(scanned_tokens, goal) {
             assert_eq!(scanned_token, goal_token)
         }

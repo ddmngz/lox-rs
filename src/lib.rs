@@ -44,8 +44,7 @@ fn run(code: Box<str>, interpreter: &mut Interpreter) -> Result<(), Error> {
     if !validate(&code) {
         return Err(Error::NotAscii);
     };
-    let tokens = scanner::scan(code)?;
-
+    let tokens = scanner::scan(&code)?;
     let mut parser = Parser::new(tokens);
     let statements = parser.parse()?;
 

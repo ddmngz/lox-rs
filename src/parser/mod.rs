@@ -87,7 +87,7 @@ impl Parser {
 
     fn function(&mut self, kind: FunctionKind) -> Result<Statement> {
         let name = self.get_identifier()?;
-        self.consume(Token::LEFTPAREN, ParsingError::FnParenOpen(kind));
+        self.consume(Token::LEFTPAREN, ParsingError::FnParenOpen(kind))?;
         let mut params = Vec::new();
         if self
             .iter
@@ -104,7 +104,8 @@ impl Parser {
                 }
             }
         }
-        self.consume(Token::LEFTPAREN, ParsingError::FnParenClosed(kind))?;
+
+        self.consume(Token::RIGHTPAREN, ParsingError::FnParenClosed(kind))?;
         self.consume(Token::LEFTBRACE, ParsingError::FnNoBraceOpen(kind))?;
         let body = self.block()?;
         Ok(Statement::Function(Function { name, params, body }))
@@ -124,8 +125,10 @@ impl Parser {
             ..
         }) = self.consume(TokenDiscriminant::IDENTIFIER, ParsingError::NoIdentifier)
         else {
-            Self::error(ParsingError::NoIdentifier, self.iter.peek().map(|x| x.line));
-            return Err(ParsingError::NoIdentifier);
+            return Err(Self::error(
+                ParsingError::NoIdentifier,
+                self.iter.peek().map(|x| x.line),
+            ));
         };
 
         let initializer = if self.iter.next_if(|x| x.type_ == Token::EQUAL).is_some() {
@@ -160,8 +163,26 @@ impl Parser {
             Ok(Statement::Block(self.block()?))
         } else if self.iter.next_if(|x| x.type_ == Token::IF).is_some() {
             self.if_statement()
+        } else if let Some(keyword) = self.iter.next_if(|x| x.type_ == Token::RETURN) {
+            self.return_statement(keyword)
         } else {
             self.expression_statement()
+        }
+    }
+
+    fn return_statement(&mut self, keyword: ScannedToken) -> Result<Statement> {
+        if self.iter.next_if(|x| x.type_ == Token::SEMICOLON).is_some() {
+            Ok(Statement::Return {
+                token: keyword,
+                value: None,
+            })
+        } else {
+            let value = Some(self.expression()?);
+            self.consume(Token::SEMICOLON, ParsingError::NoSemi)?;
+            Ok(Statement::Return {
+                token: keyword,
+                value,
+            })
         }
     }
 
@@ -233,6 +254,7 @@ impl Parser {
     fn if_statement(&mut self) -> Result<Statement> {
         self.consume(TokenDiscriminant::LEFTPAREN, ParsingError::IfParenOpen)?;
         let condition = self.expression()?;
+        eprintln!("if condition: {condition}");
         self.consume(TokenDiscriminant::RIGHTPAREN, ParsingError::IfParenOpen)?;
 
         let then = Box::new(self.statement()?);
@@ -267,7 +289,7 @@ impl Parser {
         {
             Ok(statements)
         } else {
-            Err(ParsingError::UntermBrace)
+            Err(Self::error(ParsingError::UntermBrace, None))
         }
     }
 
@@ -289,7 +311,7 @@ impl Parser {
         let expression = self.or()?;
         if let Some(ScannedToken { line, .. }) = self.iter.next_if(|x| x.type_ == Token::EQUAL) {
             let value = Box::new(self.assignment()?);
-            if let Expression::Variable(name) = expression {
+            if let Expression::Variable { name, .. } = expression {
                 return Ok(Expression::Assign { name, value });
             } else {
                 return Err(Self::error(ParsingError::InvalidAssignment, Some(line)));
@@ -320,7 +342,9 @@ impl Parser {
             Token::LESS,
             Token::LESSEQUAL,
         ];
-        self.recursive_descend(Self::term, &mut types)
+
+        let res = self.recursive_descend(Self::term, &mut types);
+        res
     }
 
     fn term(&mut self) -> Result<Expression> {
@@ -354,7 +378,7 @@ impl Parser {
 
     fn call(&mut self) -> Result<Expression> {
         let mut expr = self.primary();
-        while let Some(_) = self.iter.next_if(|x| x.type_ != Token::LEFTPAREN) {
+        while self.iter.next_if(|x| x.type_ == Token::LEFTPAREN).is_some() {
             expr = self.finish_call(expr?);
         }
         expr
@@ -377,8 +401,10 @@ impl Parser {
         {
             loop {
                 if args.len() >= 255 {
-                    // print too many args
-                    //return Err(ParsingError::TooManyArgs);
+                    Self::error(
+                        ParsingError::TooManyArgs,
+                        Some(self.iter.peek().unwrap().line),
+                    );
                 }
                 args.push(self.expression()?);
                 if self.next_if(Token::COMMA).is_none() {
@@ -398,7 +424,6 @@ impl Parser {
         let Some(ScannedToken { type_: token, line }) = self.iter.next() else {
             return Err(Self::error(ParsingError::NoExpr, None));
         };
-
         match token {
             Token::FALSE => Ok(false.into()),
             Token::TRUE => Ok(true.into()),
@@ -406,7 +431,7 @@ impl Parser {
             Token::NUMBER(num) => Ok(num.into()),
             Token::STRING(string) => Ok(string.into()),
             Token::LEFTPAREN => self.handle_paren(),
-            Token::IDENTIFIER(name) => Ok(Expression::Variable(name)),
+            Token::IDENTIFIER(name) => Ok(Expression::Variable { name, line }),
             _ => Err(Self::error(ParsingError::NoExpr, Some(line))),
         }
     }
@@ -427,7 +452,7 @@ impl Parser {
                 left,
                 operator,
                 right,
-            }
+            };
         }
         Ok(expr)
     }
@@ -439,8 +464,9 @@ impl Parser {
     ) -> Result<Expression> {
         let mut expr = f(self)?;
         // TODO: see if there's a way we can combine the while let to remove the unwrap
+
         while let Some(token) = self.iter.next_if(|x| types.contains(&x.type_)) {
-            let operator = BinaryOperator::from_token(token.type_).unwrap();
+            let operator = BinaryOperator::from_token(token).unwrap();
             let right = f(self)?;
             let left = Box::new(expr);
             let right = Box::new(right);

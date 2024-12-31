@@ -79,6 +79,18 @@ impl From<Identifier> for Token {
     }
 }
 
+impl From<SmartString> for Identifier {
+    fn from(string: SmartString) -> Self {
+        Self(string)
+    }
+}
+
+impl Into<SmartString> for Identifier {
+    fn into(self) -> SmartString {
+        self.0
+    }
+}
+
 impl PartialEq<Token> for TokenDiscriminant {
     fn eq(&self, other: &Token) -> bool {
         let discrim: TokenDiscriminant = other.into();

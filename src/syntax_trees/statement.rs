@@ -1,4 +1,5 @@
 use super::expression::Expression;
+use crate::scanner::ScannedToken;
 use crate::token::Identifier;
 use crate::token::SmartString;
 use std::fmt;
@@ -21,6 +22,10 @@ pub enum Statement {
         else_case: Option<Box<Statement>>,
     },
     Block(Vec<Statement>),
+    Return {
+        token: ScannedToken,
+        value: Option<Expression>,
+    },
 }
 
 impl fmt::Display for Statement {
@@ -51,6 +56,11 @@ impl fmt::Display for Statement {
                 else_case: None,
             } => write!(f, "if {condition} {{\n{then}\n}}"),
             Self::Block(block) => format_body(f, &block),
+            Self::Return {
+                value: Some(expression),
+                ..
+            } => write!(f, "return {expression};"),
+            Self::Return { value: None, .. } => write!(f, "return;"),
         }
     }
 }

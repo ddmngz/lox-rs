@@ -1,6 +1,7 @@
 use std::fmt;
 use strum_macros::EnumDiscriminants;
 pub type SmartString = smartstring::SmartString<smartstring::Compact>;
+
 /// Every Possible Type of Token
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, Default, PartialEq, EnumDiscriminants)]
@@ -88,6 +89,12 @@ impl From<SmartString> for Identifier {
 impl Into<SmartString> for Identifier {
     fn into(self) -> SmartString {
         self.0
+    }
+}
+
+impl AsRef<str> for Identifier {
+    fn as_ref(&self) -> &str {
+        self.0.as_str()
     }
 }
 

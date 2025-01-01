@@ -1,7 +1,6 @@
 use super::lox_object::LoxObject;
 use crate::scanner::ScannedToken;
 use crate::token::SmartString;
-use crate::Interpreter;
 use std::fmt;
 use strum_macros::Display;
 
@@ -140,15 +139,6 @@ pub enum LogicalOperator {
     AND,
     #[strum(serialize = "or")]
     OR,
-}
-
-impl Into<Token> for LogicalOperator {
-    fn into(self) -> Token {
-        match self {
-            Self::AND => Token::AND,
-            Self::OR => Token::OR,
-        }
-    }
 }
 
 impl TryFrom<Token> for LogicalOperator {

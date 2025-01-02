@@ -10,3 +10,7 @@ edition = "2021"
     strum_macros = "0.26.3"
     thiserror = "2.0.9"
     smartstring = "1.0.1"
+
+
+[profile.release]
+    debug = true

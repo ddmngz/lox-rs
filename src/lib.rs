@@ -8,7 +8,7 @@ pub mod scanner;
 pub mod syntax_trees;
 pub mod token;
 
-use interpreter::LoxEnvironment;
+use interpreter::Environment;
 
 use error::Error;
 use parser::Parser;
@@ -18,14 +18,14 @@ pub fn run_file(file_name: &str) -> Result<(), Error> {
     let mut contents: String = String::new();
     file.read_to_string(&mut contents).unwrap();
     let contents = contents.into_boxed_str();
-    let mut env = LoxEnvironment::default();
+    let mut env = Environment::default();
     run(contents, &mut env)
 }
 
 pub fn run_prompt() -> Result<(), Error> {
     let mut workhorse = String::new();
     let mut contents: Box<str>;
-    let mut environment = LoxEnvironment::default();
+    let mut environment = Environment::default();
     loop {
         print!("> ");
         stdout().flush()?;
@@ -41,7 +41,7 @@ pub fn run_prompt() -> Result<(), Error> {
     }
 }
 
-fn run(code: Box<str>, env: &mut LoxEnvironment) -> Result<(), Error> {
+fn run(code: Box<str>, env: &mut Environment) -> Result<(), Error> {
     if !validate(&code) {
         return Err(Error::NotAscii);
     };

@@ -86,9 +86,9 @@ impl From<SmartString> for Identifier {
     }
 }
 
-impl Into<SmartString> for Identifier {
-    fn into(self) -> SmartString {
-        self.0
+impl From<Identifier> for SmartString {
+    fn from(identifier: Identifier) -> SmartString {
+        identifier.0
     }
 }
 

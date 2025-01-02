@@ -1,23 +1,27 @@
 pub mod error;
 
+use crate::syntax_trees::lox_object::LoxObject;
+use crate::syntax_trees::statement::Function;
 use crate::syntax_trees::statement::Statement;
 use crate::token::SmartString;
 pub use error::RuntimeError;
-
-use crate::syntax_trees::lox_object::LoxObject;
 
 use crate::syntax_trees::expression::BinaryOperator;
 use crate::syntax_trees::expression::Expression;
 use crate::syntax_trees::expression::LogicalOperator;
 use crate::syntax_trees::expression::UnaryOperator;
 pub use environment::Environment;
-pub use environment::FunctionEnvironment;
 pub use environment::Global;
-pub use environment::LoxEnvironment;
 
 pub type Result<T> = std::result::Result<T, RuntimeError>;
 
-pub fn interpret(statements: Vec<Statement>, env: &mut LoxEnvironment) -> Result<()> {
+/*
+ *
+ *
+ *
+ */
+
+pub fn interpret(statements: Vec<Statement>, env: &mut Environment) -> Result<()> {
     for statement in statements {
         execute(statement, env)?;
     }
@@ -25,10 +29,7 @@ pub fn interpret(statements: Vec<Statement>, env: &mut LoxEnvironment) -> Result
     Ok(())
 }
 
-fn execute(
-    statement: Statement,
-    environment: &mut Environment<impl Global>,
-) -> Result<Option<LoxObject>> {
+fn execute(statement: Statement, environment: &mut Environment) -> Result<Option<LoxObject>> {
     match statement {
         Statement::Expression(statement) => {
             evaluate(statement, environment)?;
@@ -74,12 +75,7 @@ fn execute(
             environment.remove_scope();
             Ok(ret_val)
         }
-        Statement::Function(function) => {
-            let name = function.name.to_string();
-            let function_object = LoxObject::Function(function);
-            environment.define(&name, Some(function_object));
-            Ok(None)
-        }
+        Statement::Function(function) => new_function(function, environment),
 
         Statement::Return { value, .. } => {
             if let Some(value) = value {
@@ -92,10 +88,21 @@ fn execute(
     }
 }
 
-pub fn evaluate(
-    expression: Expression,
-    environment: &mut Environment<impl Global>,
-) -> Result<LoxObject> {
+fn new_function(function: Function, env: &mut Environment) -> Result<Option<LoxObject>> {
+    let name = function.name.to_string();
+    let function_object = if env.global() {
+        LoxObject::Function(function)
+    } else {
+        LoxObject::Closure {
+            declaration: function,
+            env: env.as_closure(),
+        }
+    };
+    env.define(&name, Some(function_object));
+    Ok(None)
+}
+
+pub fn evaluate(expression: Expression, environment: &mut Environment) -> Result<LoxObject> {
     match expression {
         Expression::Binary {
             left,
@@ -145,18 +152,25 @@ fn call(
     callable: LoxObject,
     line: u32,
     args: Vec<LoxObject>,
-    env: &mut Environment<impl Global>,
+    env: &mut Environment,
 ) -> Result<LoxObject> {
     match callable {
         LoxObject::Function(function) => {
+            /*
+             *  TODO: If global scope then use FunctionScope, otherwise use existing scoping rules
+             *  :3
+             *
+             */
             check_arity(function.params.len(), args.len(), line)?;
-            let mut function_env = env.function_environment();
+            env.add_scope();
+            //let mut function_env = env.function_environment();
             for (param, arg) in function.params.iter().zip(args) {
                 let smartstr: SmartString = param.clone().into();
                 let param: String = smartstr.into();
-                function_env.define(&param, Some(arg))
+                env.define(&param, Some(arg))
             }
-            let return_value = execute_block(function.body.clone(), &mut function_env)?;
+            let return_value = execute_block(function.body.clone(), env)?;
+            env.remove_scope();
             match return_value {
                 Some(value) => Ok(value),
                 None => Ok(LoxObject::Nil),
@@ -195,7 +209,7 @@ fn check_arity(expected: usize, got: usize, line: u32) -> Result<()> {
 
 fn execute_block(
     statements: Vec<Statement>,
-    environment: &mut Environment<impl Global>,
+    environment: &mut Environment,
 ) -> Result<Option<LoxObject>> {
     for statement in statements {
         if let Some(return_value) = execute(statement, environment)? {
@@ -205,11 +219,7 @@ fn execute_block(
     Ok(None)
 }
 
-fn handle_variable(
-    key: &str,
-    line: u32,
-    environment: &mut Environment<impl Global>,
-) -> Result<LoxObject> {
+fn handle_variable(key: &str, line: u32, environment: &mut Environment) -> Result<LoxObject> {
     match environment.get(key) {
         Ok(None) => Ok(LoxObject::Nil),
         Ok(Some(object)) => Ok(object.clone()),
@@ -221,7 +231,7 @@ fn handle_binary(
     left: Expression,
     operator: BinaryOperator,
     right: Expression,
-    environment: &mut Environment<impl Global>,
+    environment: &mut Environment,
 ) -> Result<LoxObject> {
     use BinaryOperator::{
         BANGEQUAL, EQUALEQUAL, GREATER, GREATEREQUAL, LESS, LESSEQUAL, MINUS, PLUS, SLASH, STAR,
@@ -263,7 +273,7 @@ fn handle_binary(
 fn handle_unary(
     operator: UnaryOperator,
     inner: Expression,
-    environment: &mut Environment<impl Global>,
+    environment: &mut Environment,
 ) -> Result<LoxObject> {
     let inner = evaluate(inner, environment)?;
     match operator {
@@ -310,13 +320,13 @@ pub mod environment {
         fn as_mut_env(&mut self) -> &mut Env;
     }
 
-    #[derive(Clone, Debug)]
-    pub struct Environment<G: Global + fmt::Debug> {
+    #[derive(Clone, Debug, Default)]
+    pub struct Environment {
         inner: Option<EnvironmentInner>,
-        global: G,
+        global: Env,
     }
 
-    impl fmt::Display for Environment<Env> {
+    impl fmt::Display for Environment {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             write!(f, "{:?}", self.global)?;
             if let Some(inner) = &self.inner {
@@ -333,15 +343,6 @@ pub mod environment {
         parent: Option<Box<EnvironmentInner>>,
     }
 
-    impl Default for LoxEnvironment {
-        fn default() -> Self {
-            Self {
-                inner: None,
-                global: Env::new(),
-            }
-        }
-    }
-
     impl fmt::Display for EnvironmentInner {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             if let Some(parent) = &self.parent {
@@ -351,10 +352,6 @@ pub mod environment {
             }
         }
     }
-
-    pub type LoxEnvironment = Environment<Env>;
-
-    pub type FunctionEnvironment<'a> = Environment<&'a mut Env>;
 
     impl Global for Env {
         fn get(&self, key: &str) -> Option<&Option<LoxObject>> {
@@ -394,18 +391,9 @@ pub mod environment {
         }
     }
 
-    impl<'a> FunctionEnvironment<'a> {
-        fn new(global: &'a mut Env) -> Self {
-            Self {
-                inner: Some(EnvironmentInner::new()),
-                global,
-            }
-        }
-    }
-
-    impl<G: Global> Environment<G> {
-        pub fn function_environment(&mut self) -> FunctionEnvironment {
-            FunctionEnvironment::new(self.global.as_mut_env())
+    impl Environment {
+        pub const fn global(&self) -> bool {
+            self.inner.is_none()
         }
 
         pub fn get(&self, key: &str) -> Result<&Option<LoxObject>> {
@@ -457,6 +445,9 @@ pub mod environment {
                 panic!("attempted to remove global scope");
             };
             self.inner = inner.parent.map(|env| *env)
+        }
+        pub fn as_closure(&self) -> Self {
+            self.clone()
         }
     }
 

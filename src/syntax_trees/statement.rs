@@ -55,7 +55,7 @@ impl fmt::Display for Statement {
                 then,
                 else_case: None,
             } => write!(f, "if {condition} {{\n{then}\n}}"),
-            Self::Block(block) => format_body(f, &block),
+            Self::Block(block) => format_body(f, block),
             Self::Return {
                 value: Some(expression),
                 ..

@@ -343,8 +343,7 @@ impl Parser {
             Token::LESSEQUAL,
         ];
 
-        let res = self.recursive_descend(Self::term, &mut types);
-        res
+        self.recursive_descend(Self::term, &mut types)
     }
 
     fn term(&mut self) -> Result<Expression> {
